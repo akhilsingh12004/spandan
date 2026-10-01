@@ -28,7 +28,7 @@ def test_root_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "online"
-    assert len(data["modalities"]) == 3
+    assert len(data["modalities"]) >= 3
     assert data["disclaimer"] == MEDICAL_DISCLAIMER
 
 
@@ -132,6 +132,16 @@ def test_blood_prediction_pipeline():
     assert "status" in first_param
     assert first_param["status"] in ["NORMAL", "LOW", "HIGH", "CRITICAL_LOW", "CRITICAL_HIGH", "UNASSESSED"]
 
+    # Verify AI Clinical Explanation is attached
+    assert "aiExplanation" in data
+    ai_exp = data["aiExplanation"]
+    assert "headline" in ai_exp
+    assert "executiveSummary" in ai_exp
+    assert "organSystems" in ai_exp
+    assert len(ai_exp["organSystems"]) > 0
+    assert "lifestylePrescription" in ai_exp
+    assert "doctorChecklist" in ai_exp
+
     assert data["disclaimer"] == MEDICAL_DISCLAIMER
 
 
@@ -143,6 +153,67 @@ def test_blood_reference_ranges():
     assert "referenceRanges" in data
     assert len(data["referenceRanges"]) >= 25
     assert data["disclaimer"] == MEDICAL_DISCLAIMER
+
+
+def test_ai_explain_report_endpoint():
+    payload = {
+        "reportData": {
+            "parameters": [
+                {"canonicalName": "Hemoglobin", "value": 10.4, "unit": "g/dL", "status": "LOW", "panel": "Complete Blood Count (CBC)"},
+                {"canonicalName": "Total Cholesterol", "value": 224, "unit": "mg/dL", "status": "HIGH", "panel": "Lipid Profile"}
+            ],
+            "conditions": [
+                {"condition": "Microcytic Anemia"}
+            ],
+            "summary": {
+                "healthScore": 68,
+                "abnormalCount": 2,
+                "criticalCount": 0,
+                "normalCount": 10
+            }
+        },
+        "module": "blood",
+        "readingLevel": "standard"
+    }
+    response = client.post("/api/ai/explain-report", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "explanation" in data
+    exp = data["explanation"]
+    assert "headline" in exp
+    assert "executiveSummary" in exp
+    assert len(exp["organSystems"]) >= 1
+    assert "lifestylePrescription" in exp
+    assert "doctorChecklist" in exp
+    assert len(exp["doctorChecklist"]["questions"]) > 0
+    assert data["disclaimer"] == MEDICAL_DISCLAIMER
+
+
+def test_ai_chat_report_endpoint():
+    payload = {
+        "reportData": {
+            "parameters": [
+                {"canonicalName": "Hemoglobin", "value": 10.4, "unit": "g/dL", "status": "LOW", "panel": "Complete Blood Count (CBC)"},
+                {"canonicalName": "Total Cholesterol", "value": 224, "unit": "mg/dL", "status": "HIGH", "panel": "Lipid Profile"}
+            ],
+            "conditions": [
+                {"condition": "Microcytic Anemia"}
+            ],
+            "summary": {
+                "healthScore": 68,
+                "abnormalCount": 2
+            }
+        },
+        "message": "What foods should I eat to improve my low hemoglobin?",
+        "module": "blood"
+    }
+    response = client.post("/api/ai/chat-report", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "reply" in data
+    assert len(data["reply"]) > 20
+    assert "followUpSuggestions" in data
+    assert len(data["followUpSuggestions"]) > 0
 
 
 if __name__ == "__main__":

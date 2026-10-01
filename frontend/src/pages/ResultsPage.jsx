@@ -19,6 +19,7 @@ import ConfidenceBar from '../components/ConfidenceBar'
 import ECGSignalChart from '../components/ECGSignalChart'
 import Disclaimer from '../components/Disclaimer'
 import BloodResultsView from '../components/BloodResultsView'
+import AIReportExplainer from '../components/AIReportExplainer'
 
 export default function ResultsPage() {
   const { module } = useParams()
@@ -426,6 +427,11 @@ export default function ResultsPage() {
             </div>
           </motion.div>
         )}
+
+        {/* AI Clinical Report Explainer & Assistant */}
+        <div style={{ maxWidth: '1200px', margin: '32px auto 0' }}>
+          <AIReportExplainer reportData={results} module={isCardiac ? 'cardiac' : 'skin'} />
+        </div>
 
         {/* Additional Info */}
         <motion.div

@@ -25,6 +25,7 @@ from modules.explainability import (
 )
 from modules.blood_processor import process_blood_report
 from modules.blood_reference_ranges import REFERENCE_RANGES, BLOOD_PANELS
+from modules.ai_explainer import generate_report_explanation, chat_with_report_ai
 
 MEDICAL_DISCLAIMER = (
     "This tool is for educational and decision-support purposes only and is not a "
@@ -57,6 +58,7 @@ def root():
             "Module 1: Cardiac Disease Prediction (ECG)",
             "Module 2: Skin Disease Prediction (Photo)",
             "Module 3: Blood Test Report Analysis (Lab Image / PDF)",
+            "Module 4: AI Clinical Report Explainer & Conversational Assistant",
         ],
         "endpoints": [
             "/api/health",
@@ -65,6 +67,8 @@ def root():
             "/api/predict/blood",
             "/api/blood/reference-ranges",
             "/api/detect-module",
+            "/api/ai/explain-report",
+            "/api/ai/chat-report",
         ],
         "disclaimer": MEDICAL_DISCLAIMER,
     }
@@ -123,6 +127,18 @@ async def predict_cardiac_endpoint(file: UploadFile = File(...)):
             attributions=inference_result.get("attributions"),
         )
 
+        # 4. Generate AI clinical explanation
+        ai_exp = generate_report_explanation(
+            {
+                "topCondition": inference_result["topCondition"],
+                "topConfidence": inference_result["topConfidence"],
+                "predictions": inference_result["predictions"],
+                "metrics": features,
+                "requiresSpecialistReview": inference_result.get("requiresSpecialistReview", False),
+            },
+            module="cardiac",
+        )
+
         total_elapsed = round(time.time() - start_total, 2)
 
         return JSONResponse(
@@ -146,6 +162,7 @@ async def predict_cardiac_endpoint(file: UploadFile = File(...)):
                     "rmssd": features.get("rmssd", "28 ms"),
                 },
                 "heatmapUrl": gradcam_img_url,
+                "aiExplanation": ai_exp,
                 "processingTime": f"{total_elapsed}s",
                 "disclaimer": MEDICAL_DISCLAIMER,
             }
@@ -182,6 +199,18 @@ async def predict_skin_endpoint(file: UploadFile = File(...)):
             alpha=0.45,
         )
 
+        # 4. Generate AI clinical explanation
+        ai_exp = generate_report_explanation(
+            {
+                "topCondition": inference_result["topCondition"],
+                "topConfidence": inference_result["topConfidence"],
+                "predictions": inference_result["predictions"],
+                "segmentationMetrics": seg_metrics,
+                "requiresSpecialistReview": inference_result.get("requiresSpecialistReview", False),
+            },
+            module="skin",
+        )
+
         total_elapsed = round(time.time() - start_total, 2)
 
         return JSONResponse(
@@ -196,6 +225,7 @@ async def predict_skin_endpoint(file: UploadFile = File(...)):
                 "requiresSpecialistReview": inference_result.get("requiresSpecialistReview", False),
                 "segmentationMetrics": seg_metrics,
                 "heatmapUrl": heatmap_overlay_url,
+                "aiExplanation": ai_exp,
                 "processingTime": f"{total_elapsed}s",
                 "disclaimer": MEDICAL_DISCLAIMER,
             }
@@ -233,12 +263,57 @@ async def predict_blood_endpoint(
                 pass
 
         result = process_blood_report(contents, filename=filename, manual_data=parsed_manual)
+        
+        # Generate AI Clinical Explanation
+        result["aiExplanation"] = generate_report_explanation(result, module="blood")
+
         total_elapsed = round(time.time() - start_total, 2)
         result["processingTime"] = f"{total_elapsed}s"
         result["disclaimer"] = MEDICAL_DISCLAIMER
         return JSONResponse(content=result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Blood report processing error: {str(e)}")
+
+
+@app.post("/api/ai/explain-report")
+async def explain_report_endpoint(payload: dict):
+    """
+    Generates a full AI Clinical Explanation for an analyzed diagnostic report.
+    Supports blood reports, cardiac ECGs, and skin lesion assessments.
+    """
+    try:
+        report_data = payload.get("reportData", {})
+        module = payload.get("module", "blood")
+        reading_level = payload.get("readingLevel", "standard")
+        explanation = generate_report_explanation(report_data, module=module, reading_level=reading_level)
+        return JSONResponse(content={
+            "explanation": explanation,
+            "disclaimer": MEDICAL_DISCLAIMER
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI report explanation error: {str(e)}")
+
+
+@app.post("/api/ai/chat-report")
+async def chat_report_endpoint(payload: dict):
+    """
+    Interactive AI Medical Assistant answering user inquiries regarding their analyzed report.
+    """
+    try:
+        report_data = payload.get("reportData", {})
+        message = payload.get("message", "")
+        chat_history = payload.get("chatHistory", [])
+        module = payload.get("module", "blood")
+        response = chat_with_report_ai(
+            report_data,
+            user_message=message,
+            chat_history=chat_history,
+            module=module
+        )
+        response["disclaimer"] = MEDICAL_DISCLAIMER
+        return JSONResponse(content=response)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI chat error: {str(e)}")
 
 
 @app.get("/api/blood/reference-ranges")

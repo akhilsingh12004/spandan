@@ -20,6 +20,7 @@ import {
   HeartPulse
 } from 'lucide-react'
 import Disclaimer from './Disclaimer'
+import AIReportExplainer from './AIReportExplainer'
 
 export default function BloodResultsView({ results, uploadedImage, navigate }) {
   const [activeFilter, setActiveFilter] = useState('all')
@@ -264,6 +265,9 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
             </div>
           </motion.div>
         )}
+
+        {/* AI Clinical Report Explainer & Assistant */}
+        <AIReportExplainer reportData={results} module="blood" />
 
         {/* Main Content Grid: Correlated Conditions & Detailed Parameters */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(360px, 1.4fr)', gap: '32px' }} className="blood-main-grid">

@@ -35,7 +35,7 @@ Open your browser at: `http://localhost:5173`
 
 ## 🔬 Testing & Verification
 
-Run the comprehensive integration test suite (7/7 tests passing):
+Run the comprehensive integration test suite (9/9 tests passing):
 ```bash
 cd backend
 python -m pytest tests/test_api.py -v
@@ -56,8 +56,8 @@ d:/spandan/
 ├── frontend/                         # React 19 + Vite Application
 │   ├── public/                       # Static assets (sample_ecg.png, sample_skin.png, sample_blood_report.png)
 │   ├── src/
-│   │   ├── components/               # Navbar, Footer, ImageUploader, ProcessingOverlay,
-│   │   │                             # BloodResultsView, ConfidenceBar, ECGSignalChart, Disclaimer, BackgroundMesh
+│   │   ├── components/               # AIReportExplainer, BloodResultsView, ConfidenceBar, ECGSignalChart,
+│   │   │                             # ImageUploader, ProcessingOverlay, Disclaimer, Navbar, Footer
 │   │   ├── pages/                    # HomePage, CardiacPage, SkinPage, BloodReportPage, ResultsPage, AboutPage
 │   │   ├── services/                 # Axios API service + offline simulation fallbacks
 │   │   ├── App.jsx                   # React Router config (/cardiac, /skin, /blood, /results/:module)
@@ -67,6 +67,7 @@ d:/spandan/
 │
 ├── backend/                          # FastAPI Python Application
 │   ├── modules/
+│   │   ├── ai_explainer.py           # Clinical report synthesis, organ breakdown & conversational Q&A
 │   │   ├── cardiac_processor.py      # OpenCV grid removal, trace isolation, digitization, peak detection
 │   │   ├── cardiac_model.py          # 1D-CNN + BiLSTM architecture & 1D Grad-CAM (31 classes)
 │   │   ├── skin_processor.py         # DullRazor hair removal, CLAHE, lesion segmentation
@@ -82,7 +83,7 @@ d:/spandan/
 │   ├── tests/
 │   │   ├── generate_samples.py       # Synthesizes test ECG strip & skin lesion images
 │   │   ├── generate_blood_sample.py  # Generates realistic clinical blood report sample
-│   │   ├── test_api.py               # Pytest API integration test suite (7/7 tests passing)
+│   │   ├── test_api.py               # Pytest API integration test suite (9/9 tests passing)
 │   │   └── sample_data/              # Sample test images
 │   ├── config.py                     # Disease taxonomies & constants
 │   ├── main.py                       # FastAPI endpoints, CORS, auto-module detection
