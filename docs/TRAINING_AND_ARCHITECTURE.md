@@ -5,19 +5,21 @@
 
 ### 1. Executive Summary & System Overview
 
-**Spandan AI** is a full-stack, multi-modal medical AI diagnostic assistant comprising two independent, clinical-grade prediction modules integrated under a unified web application shell:
+**Spandan AI** is a production-grade, multi-modal medical AI diagnostic assistant unifying four clinical-grade prediction and interpretation modules under a unified web application:
 
-1. **Cardiac Disease Prediction Module**: Ingests photographic or scanned ECG strips, isolates waveform traces by removing paper grid lines, digitizes the waveform into continuous numerical time-series signals ($mV$ vs $time$), extracts electrophysiological features (R-peaks, P-QRS-T segments, HR, HRV, QT, PR), and classifies 19 distinct cardiac conditions using a **1D-CNN + BiLSTM Hybrid Network** accompanied by **1D Grad-CAM waveform attribution**.
-2. **Skin Disease Prediction Module**: Ingests clinical/dermoscopic photographs of skin lesions, performs artifact & hair removal (**DullRazor** morphological filtering), enhances contrast (**CIE-LAB CLAHE**), segments the lesion boundary, extracts deep visual features via a **Deep Transfer Learning CNN**, and predicts 17 dermatological conditions with **2D Grad-CAM heatmap overlays**.
+1. **Cardiac Disease Prediction Module**: Ingests photographic or scanned ECG strips, isolates waveform traces by removing paper grid lines, digitizes the waveform into continuous numerical time-series signals ($mV$ vs $time$), extracts electrophysiological features (R-peaks, P-QRS-T segments, HR, HRV, QT, PR), and classifies 31 distinct cardiac conditions across 5 clinical groups using a **1D-CNN + BiLSTM Hybrid Network** accompanied by **1D Grad-CAM waveform attribution**.
+2. **Skin Disease Prediction Module**: Ingests clinical/dermoscopic photographs of skin lesions, performs artifact & hair removal (**DullRazor** morphological filtering), enhances contrast (**CIE-LAB CLAHE**), segments the lesion boundary, computes morphological ABCD metrics, extracts deep visual features via a **Deep Transfer Learning CNN**, and predicts 29 dermatological conditions with **2D Grad-CAM heatmap overlays**.
+3. **Blood Test Report Analysis Module**: Ingests laboratory report images or digital PDFs, extracts text via hybrid OCR (`pdfplumber` / `pytesseract` with Gaussian adaptive thresholding), parses 25+ parameters across 9 panels with clinical aliases, benchmarks values against standard adult reference intervals, evaluates multi-parameter pathological patterns (Microcytic/Macrocytic Anemia, Type 2 Diabetes, Prediabetes, Atherogenic Dyslipidemia, Hepatic/Renal strain), and computes a holistic Metabolic Health Score ($0-100$).
+4. **Clinical AI Report Explainer & Conversational Assistant**: Analyzes the multi-system findings of any diagnostic report, synthesizes plain-language executive summaries, maps physiological organ system impacts (Hematology, Cardiovascular, Glycemic, Hepatic, Renal, Micronutrients), formulates personalized dietary and lifestyle prescriptions, prepares high-yield doctor consultation checklists, flags emergency red-flags, and provides an interactive medical Q&A chat assistant with Web Speech API text-to-speech audio narration.
 
 ```
                            +----------------------------------------+
                            |   Spandan AI React 19 Frontend (Vite)  |
-                           |   - Image Drag & Drop / Demo Samples   |
-                           |   - Dynamic Step-by-Step Processing    |
+                           |   - Multi-Modal Image/PDF Drag & Drop  |
                            |   - Interactive ECG Canvas & Metrics   |
                            |   - Grad-CAM Heatmap / Original Toggle |
-                           |   - Prominent Medical Disclaimer       |
+                           |   - Visual Lab Range Sliders & Filters |
+                           |   - Clinical AI Explainer & Speech TTS |
                            +-------------------+--------------------+
                                                |
                                      REST API / JSON
@@ -25,20 +27,31 @@
                            +-------------------+--------------------+
                            |        FastAPI Python Backend          |
                            |  (CORS, Async Streaming, Pytest suite) |
-                           +---------+--------------------+---------+
-                                     |                    |
-                 +-------------------+                    +-------------------+
-                 |                                                            |
-+----------------v------------------+                      +------------------v-----------------+
-|      Cardiac ECG Pipeline         |                      |       Skin Lesion Pipeline         |
-+-----------------------------------+                      +------------------------------------+
-| 1. OpenCV Pink/Gray Grid Removal  |                      | 1. DullRazor Morphological Filter  |
-| 2. Waveform Trace Isolation       |                      | 2. CIE-LAB CLAHE Contrast Boost    |
-| 3. Pixel-to-Time-Series Conversion|                      | 3. Adaptive Lesion Segmentation    |
-| 4. Peak & Interval Extraction     |                      | 4. ABCD Irregularity Metric Calc   |
-| 5. 1D-CNN + BiLSTM Classification |                      | 5. Deep Transfer CNN Backbone      |
-| 6. 1D Grad-CAM Signal Attribution |                      | 6. 2D Grad-CAM Jet Heatmap Overlay |
-+-----------------------------------+                      +------------------------------------+
+                           +---------+---------+----------+---------+
+                                     |         |          |
+         +---------------------------+         |          +---------------------------+
+         |                                     |                                      |
++--------v------------------+        +---------v--------+                   +---------v----------------+
+|   Cardiac ECG Pipeline    |        |  Skin Pipeline   |                   |  Blood Report Pipeline   |
++---------------------------+        +------------------+                   +--------------------------+
+| 1. Dual-Hue Grid Removal  |        | 1. DullRazor     |                   | 1. PDF & OCR Extraction  |
+| 2. Waveform Digitization  |        | 2. CLAHE Boost   |                   | 2. Regex Lab Parser      |
+| 3. Peak/Interval Metrics  |        | 3. ABCD Morph    |                   | 3. Clinical Ref Database |
+| 4. 1D-CNN + BiLSTM (31)   |        | 4. Transfer CNN  |                   | 4. Multi-Pattern Engine  |
+| 5. 1D Grad-CAM Wave Map   |        | 5. 2D Grad-CAM   |                   | 5. Metabolic Score 0-100 |
++-------------+-------------+        +--------+---------+                   +------------+-------------+
+              |                               |                                          |
+              +───────────────────────────────┼──────────────────────────────────────────+
+                                              |
+                                              ▼
+                             +----------------------------------+
+                             |    Clinical AI Report Explainer  |
+                             |  - Plain-Language Synthesis      |
+                             |  - 6-Domain Organ Impact Mapping |
+                             |  - Nutrition & Movement Guidance |
+                             |  - Doctor Consultation Checklist |
+                             |  - Interactive Medical Q&A Chat  |
+                             +----------------------------------+
 ```
 
 ---
