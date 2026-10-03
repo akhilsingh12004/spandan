@@ -131,7 +131,7 @@ def process_skin_image(
     2. DullRazor hair removal
     3. CLAHE contrast enhancement
     4. Lesion segmentation and morphological analysis
-    5. Resize to CNN input (224, 224) and normalize
+    5. Extract RGB statistical features for the trained MLP model
     """
     np_arr = np.frombuffer(image_bytes, np.uint8)
     image_bgr = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -148,8 +148,10 @@ def process_skin_image(
     # 3. Lesion segmentation
     mask, metrics = segment_lesion(enhanced)
 
-    # 4. Prepare normalized model input (RGB, float32, range [0, 1])
+    # 4. Feature Extraction for MLP Model (RGB Mean and Std)
     resized_rgb = cv2.cvtColor(cv2.resize(enhanced, target_size), cv2.COLOR_BGR2RGB)
-    normalized_input = resized_rgb.astype(np.float32) / 255.0
+    mean_rgb = np.mean(resized_rgb, axis=(0, 1))
+    std_rgb = np.std(resized_rgb, axis=(0, 1))
+    features = np.concatenate([mean_rgb, std_rgb]).astype(np.float32)
 
-    return image_bgr, enhanced, normalized_input, metrics
+    return image_bgr, enhanced, features, metrics
