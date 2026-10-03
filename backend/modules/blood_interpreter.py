@@ -1,6 +1,7 @@
 """
 Clinical Interpretation Engine for Blood Test Report Analysis
-Maps individual lab values and multi-parameter patterns into actionable clinical diagnoses.
+Maps individual lab values and multi-parameter patterns into actionable clinical diagnoses,
+including Jaundice (Hyperbilirubinemia), Liver Function, Anemia, Glycemic, Lipids, and Renal panels.
 """
 
 from typing import Dict, Any, List, Tuple
@@ -35,10 +36,10 @@ def evaluate_parameter(name: str, value: float) -> Dict[str, Any]:
 
     if crit_low is not None and value < crit_low:
         status = "CRITICAL_LOW"
-        description = f"Critically Low! {ref['low_desc']}"
+        description = f"Critically Low: {ref['low_desc']}"
     elif crit_high is not None and value > crit_high:
         status = "CRITICAL_HIGH"
-        description = f"Critically Elevated! {ref['high_desc']}"
+        description = f"Critically Elevated: {ref['high_desc']}"
     elif value < min_val:
         status = "LOW"
         description = ref["low_desc"]
@@ -77,7 +78,93 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
 
     conditions: List[Dict[str, Any]] = []
 
-    # 1. Anemia Patterns
+    # ─────────────────────────────────────────────────────────────
+    # 1. Jaundice & Hepatobiliary Pathology (Liver Function)
+    # ─────────────────────────────────────────────────────────────
+    bili_total = val_map.get("Total Bilirubin")
+    bili_direct = val_map.get("Direct Bilirubin")
+    bili_indirect = val_map.get("Indirect Bilirubin")
+    alt = val_map.get("ALT (SGPT)")
+    ast = val_map.get("AST (SGOT)")
+    alp = val_map.get("Alkaline Phosphatase (ALP)")
+    ggt = val_map.get("Gamma-Glutamyl Transferase (GGT)")
+
+    if bili_total is not None and bili_total > 1.2:
+        # Determine Jaundice sub-type based on Direct vs Indirect and ALP / Transaminases
+        is_overt_jaundice = bili_total >= 2.0
+        jaundice_severity = "High" if bili_total >= 3.0 else ("Moderate" if is_overt_jaundice else "Mild")
+        
+        evidence_list = [f"Serum Total Bilirubin elevated at {bili_total} mg/dL (Reference: 0.2 - 1.2 mg/dL)"]
+        if bili_direct is not None:
+            evidence_list.append(f"Direct (Conjugated) Bilirubin: {bili_direct} mg/dL")
+        if bili_indirect is not None:
+            evidence_list.append(f"Indirect (Unconjugated) Bilirubin: {bili_indirect} mg/dL")
+
+        # A. Cholestatic / Obstructive Pattern (Biliary system involvement)
+        if (bili_direct is not None and (bili_direct > 0.4 or (bili_direct / bili_total) > 0.4)) or (alp is not None and alp > 150):
+            if alp: evidence_list.append(f"Alkaline Phosphatase elevated ({alp} U/L)")
+            conditions.append({
+                "condition": "Obstructive / Cholestatic Jaundice (Biliary Outflow Impairment)",
+                "category": "Hepatic & Biliary Health",
+                "severity": jaundice_severity,
+                "confidence": 0.93,
+                "evidence": evidence_list,
+                "recommendation": "Consult a gastroenterologist or hepatologist for evaluation. An Abdominal Ultrasound (USG) or MRCP is recommended to assess the gallbladder and biliary tree for gallstones (choledocholithiasis), biliary strictures, or outflow obstruction."
+            })
+        # B. Hepatocellular Jaundice Pattern (Marked enzyme elevation)
+        elif (alt is not None and alt > 80) or (ast is not None and ast > 70):
+            if alt: evidence_list.append(f"ALT transaminase elevated ({alt} U/L)")
+            if ast: evidence_list.append(f"AST transaminase elevated ({ast} U/L)")
+            conditions.append({
+                "condition": "Hepatocellular Jaundice (Acute Hepatic Inflammation / Hepatitis)",
+                "category": "Hepatic & Biliary Health",
+                "severity": jaundice_severity,
+                "confidence": 0.92,
+                "evidence": evidence_list,
+                "recommendation": "Urgent medical consultation advised. Recommended screening includes viral hepatitis serologies (HBsAg, Anti-HCV, IgM Anti-HAV, Anti-HEV), review of all medications/supplements for drug-induced liver injury, and strict avoidance of alcohol and hepatotoxic agents."
+            })
+        # C. Hemolytic / Pre-Hepatic or Gilbert's Syndrome
+        elif (bili_indirect is not None and bili_indirect > 1.0) or (bili_direct is not None and (bili_direct / bili_total) < 0.25):
+            conditions.append({
+                "condition": "Unconjugated Hyperbilirubinemia (Hemolytic / Pre-Hepatic Jaundice or Gilbert's Syndrome)",
+                "category": "Hepatic & Biliary Health",
+                "severity": "Moderate" if is_overt_jaundice else "Mild",
+                "confidence": 0.89,
+                "evidence": evidence_list,
+                "recommendation": "Evaluate for hemolysis with Complete Blood Count (CBC), Reticulocyte count, Peripheral Blood Smear, and Serum LDH. In the absence of hemolysis, mild unconjugated hyperbilirubinemia often represents benign Gilbert's syndrome."
+            })
+        # D. General Hyperbilirubinemia
+        else:
+            conditions.append({
+                "condition": "Hyperbilirubinemia / Clinical Jaundice",
+                "category": "Hepatic & Biliary Health",
+                "severity": jaundice_severity,
+                "confidence": 0.91,
+                "evidence": evidence_list,
+                "recommendation": "Consult a physician for clinical examination of sclera and abdomen, follow-up liver function monitoring, and an abdominal ultrasound to pinpoint the underlying etiology."
+            })
+
+    # Liver enzyme elevation without hyperbilirubinemia
+    elif (alt is not None and alt > 56) or (ast is not None and ast > 40) or (alp is not None and alp > 147):
+        hepatic_signs = []
+        if alt and alt > 56: hepatic_signs.append(f"ALT elevated ({alt} U/L)")
+        if ast and ast > 40: hepatic_signs.append(f"AST elevated ({ast} U/L)")
+        if alp and alp > 147: hepatic_signs.append(f"ALP elevated ({alp} U/L)")
+        if ggt and ggt > 48: hepatic_signs.append(f"GGT elevated ({ggt} U/L)")
+
+        is_severe = (alt and alt > 150) or (ast and ast > 120)
+        conditions.append({
+            "condition": "Hepatic Strain / Elevated Liver Enzymes (Transaminitis)",
+            "category": "Hepatic / Liver Health",
+            "severity": "High" if is_severe else "Moderate",
+            "confidence": 0.90,
+            "evidence": hepatic_signs,
+            "recommendation": "Perform an abdominal ultrasound to evaluate for hepatic steatosis (fatty liver). Adopt a balanced low-glycemic, low-fat diet, minimize alcohol intake, and review hepatically cleared medications with your clinician."
+        })
+
+    # ─────────────────────────────────────────────────────────────
+    # 2. Anemia Patterns
+    # ─────────────────────────────────────────────────────────────
     hb = val_map.get("Hemoglobin")
     rbc = val_map.get("RBC Count")
     hct = val_map.get("Hematocrit (HCT)")
@@ -86,7 +173,7 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
     iron = val_map.get("Serum Iron")
 
     if hb and hb < 12.0:
-        if mcv and mcv < 80 or (ferritin and ferritin < 20) or (iron and iron < 50):
+        if (mcv and mcv < 80) or (ferritin and ferritin < 20) or (iron and iron < 50):
             conditions.append({
                 "condition": "Iron Deficiency Anemia (Microcytic)",
                 "category": "Hematology / Red Blood Cells",
@@ -114,7 +201,9 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
                 "recommendation": "Investigate underlying cause (chronic disease, occult blood loss, or hemolysis)."
             })
 
-    # 2. Glycemic / Diabetes Patterns
+    # ─────────────────────────────────────────────────────────────
+    # 3. Glycemic / Diabetes Patterns
+    # ─────────────────────────────────────────────────────────────
     fbs = val_map.get("Fasting Blood Glucose")
     hba1c = val_map.get("HbA1c")
     ppbs = val_map.get("Postprandial Glucose")
@@ -145,7 +234,9 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
             "recommendation": "Adopt a low-glycemic dietary regimen, structured daily exercise, and re-test in 3 to 6 months."
         })
 
-    # 3. Dyslipidemia & Cardiovascular Risk
+    # ─────────────────────────────────────────────────────────────
+    # 4. Dyslipidemia & Lipid Profile
+    # ─────────────────────────────────────────────────────────────
     tc = val_map.get("Total Cholesterol")
     ldl = val_map.get("LDL Cholesterol")
     hdl = val_map.get("HDL Cholesterol")
@@ -160,37 +251,17 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
 
         severity = "High" if (ldl and ldl >= 160) or (tg and tg >= 300) else "Moderate"
         conditions.append({
-            "condition": "Dyslipidemia / Cardiovascular Risk Factor",
+            "condition": "Dyslipidemia / Lipid Profile Imbalance",
             "category": "Cardiovascular & Lipids",
             "severity": severity,
             "confidence": 0.92,
             "evidence": risk_factors,
-            "recommendation": "Reduce saturated fats and refined sugars, increase dietary fiber, and discuss lipid-lowering therapy (statins) with your physician."
+            "recommendation": "Reduce dietary saturated fats and trans fats, increase soluble fiber, and discuss lipid-lowering lifestyle adjustments or therapy with your physician."
         })
 
-    # 4. Liver Function / Hepatic Injury
-    alt = val_map.get("ALT (SGPT)")
-    ast = val_map.get("AST (SGOT)")
-    bili = val_map.get("Total Bilirubin")
-    alp = val_map.get("Alkaline Phosphatase (ALP)")
-
-    if (alt and alt > 56) or (ast and ast > 40) or (bili and bili > 1.2):
-        hepatic_signs = []
-        if alt and alt > 56: hepatic_signs.append(f"ALT elevated ({alt} U/L)")
-        if ast and ast > 40: hepatic_signs.append(f"AST elevated ({ast} U/L)")
-        if bili and bili > 1.2: hepatic_signs.append(f"Total Bilirubin high ({bili} mg/dL)")
-
-        is_severe = (alt and alt > 150) or (ast and ast > 120) or (bili and bili > 2.5)
-        conditions.append({
-            "condition": "Hepatic Strain / Elevated Liver Enzymes",
-            "category": "Hepatic / Liver Health",
-            "severity": "High" if is_severe else "Moderate",
-            "confidence": 0.91,
-            "evidence": hepatic_signs,
-            "recommendation": "Perform an abdominal ultrasound to evaluate for fatty liver (steatosis) and avoid hepatotoxic medications and alcohol."
-        })
-
+    # ─────────────────────────────────────────────────────────────
     # 5. Kidney Function / Renal Health
+    # ─────────────────────────────────────────────────────────────
     creat = val_map.get("Creatinine")
     bun = val_map.get("Blood Urea Nitrogen (BUN)")
     egfr = val_map.get("eGFR")
@@ -210,63 +281,30 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
             "recommendation": "Consult a nephrologist, maintain proper hydration, and avoid NSAIDs or nephrotoxic agents."
         })
 
-    # 6. Gout / Hyperuricemia
-    uric = val_map.get("Uric Acid")
-    if uric and uric > 7.2:
-        conditions.append({
-            "condition": "Hyperuricemia (Gout / Urolithiasis Risk)",
-            "category": "Renal & Metabolic",
-            "severity": "Moderate" if uric < 9.0 else "High",
-            "confidence": 0.89,
-            "evidence": [f"Serum Uric Acid elevated ({uric} mg/dL)"],
-            "recommendation": "Limit purine-rich foods (red meat, seafood, alcohol/beer) and ensure liberal fluid intake."
-        })
-
-    # 7. Thyroid Dysfunction
-    tsh = val_map.get("TSH")
-    t4 = val_map.get("Total T4")
-    t3 = val_map.get("Total T3")
-
-    if tsh and tsh > 4.5:
-        conditions.append({
-            "condition": "Primary Hypothyroidism",
-            "category": "Endocrine & Thyroid",
-            "severity": "Moderate" if tsh < 10.0 else "High",
-            "confidence": 0.92,
-            "evidence": [f"TSH elevated at {tsh} mIU/L"],
-            "recommendation": "Evaluate Free T3 and Free T4; consult physician for levothyroxine thyroid hormone replacement therapy."
-        })
-    elif tsh and tsh < 0.4:
-        conditions.append({
-            "condition": "Hyperthyroidism",
-            "category": "Endocrine & Thyroid",
-            "severity": "Moderate",
-            "confidence": 0.90,
-            "evidence": [f"TSH suppressed at {tsh} mIU/L"],
-            "recommendation": "Cardiology/Endocrinology workup to assess resting heart rate and Free T4/T3."
-        })
-
-    # 8. Electrolyte Imbalances
+    # ─────────────────────────────────────────────────────────────
+    # 6. Electrolyte Imbalances
+    # ─────────────────────────────────────────────────────────────
     k = val_map.get("Potassium")
     na = val_map.get("Sodium")
 
     if k and k > 5.0:
+        is_high = k >= 6.0
         conditions.append({
             "condition": "Hyperkalemia (Elevated Potassium)",
-            "category": "Electrolytes & Cardiac Conduction",
-            "severity": "Critical" if k >= 6.0 else "High",
-            "confidence": 0.96,
+            "category": "Electrolytes & Fluid Balance",
+            "severity": "High" if is_high else "Moderate",
+            "confidence": 0.94,
             "evidence": [f"Potassium elevated to {k} mEq/L"],
-            "recommendation": "⚠️ URGENT MEDICAL ATTENTION: Elevated potassium risks dangerous cardiac rhythm disturbances and ECG peaking."
+            "recommendation": "Prompt clinician consultation recommended. A repeat blood test should be ordered to rule out sample hemolysis (pseudohyperkalemia), alongside review of dietary intake or medications."
         })
     elif k and k < 3.5:
         conditions.append({
             "condition": "Hypokalemia (Low Potassium)",
-            "category": "Electrolytes & Cardiac Conduction",
+            "category": "Electrolytes & Fluid Balance",
             "severity": "Moderate" if k >= 3.0 else "High",
             "confidence": 0.92,
             "evidence": [f"Potassium low ({k} mEq/L)"],
-            "recommendation": "Dietary potassium repletion (bananas, coconut water) or oral electrolyte therapy."
+            "recommendation": "Dietary potassium repletion (bananas, coconut water) or oral electrolyte therapy under medical advice."
         })
 
     if na and na < 135:
@@ -279,31 +317,9 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
             "recommendation": "Investigate fluid balance, diuretic use, or hormonal etiologies."
         })
 
-    # 9. Vitamin Deficiencies
-    vit_d = val_map.get("Vitamin D (25-OH)")
-    vit_b12 = val_map.get("Vitamin B12")
-
-    if vit_d and vit_d < 30.0:
-        conditions.append({
-            "condition": "Vitamin D Deficiency" if vit_d < 20 else "Vitamin D Insufficiency",
-            "category": "Vitamins & Nutritional Health",
-            "severity": "Moderate" if vit_d < 20 else "Low",
-            "confidence": 0.95,
-            "evidence": [f"Vitamin D level is {vit_d} ng/mL (Target: 30-100)"],
-            "recommendation": "Vitamin D3 supplementation (e.g. 60,000 IU weekly under clinical guidance) and moderate sunlight exposure."
-        })
-
-    if vit_b12 and vit_b12 < 200:
-        conditions.append({
-            "condition": "Vitamin B12 Deficiency",
-            "category": "Vitamins & Nutritional Health",
-            "severity": "Moderate",
-            "confidence": 0.94,
-            "evidence": [f"Vitamin B12 depleted ({vit_b12} pg/mL)"],
-            "recommendation": "Methylcobalamin supplementation and dietary intake of dairy/eggs/fortified sources."
-        })
-
-    # 10. Systemic Inflammation / Infection
+    # ─────────────────────────────────────────────────────────────
+    # 7. Systemic Inflammation / Infection
+    # ─────────────────────────────────────────────────────────────
     wbc = val_map.get("WBC Count")
     crp = val_map.get("C-Reactive Protein (CRP)")
     esr = val_map.get("ESR")
@@ -320,7 +336,7 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
             "severity": "High" if (crp and crp > 20) or (wbc and wbc > 18000) else "Moderate",
             "confidence": 0.91,
             "evidence": signs,
-            "recommendation": "Consult a physician to pinpoint the source of bacterial, viral, or autoimmune inflammation."
+            "recommendation": "Consult a physician to identify the underlying source of bacterial, viral, or autoimmune inflammation."
         })
 
     # Calculate overall health risk score (0-100)
@@ -334,13 +350,13 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
     else:
         abnormal_ratio = abnormal_count / float(total_evaluated)
         critical_ratio = critical_count / float(total_evaluated)
-        deduction = (abnormal_ratio * 45.0) + (critical_ratio * 40.0)
-        health_score = int(max(20, round(100.0 - deduction)))
+        deduction = (abnormal_ratio * 40.0) + (critical_ratio * 35.0)
+        health_score = int(max(25, round(100.0 - deduction)))
         
         if critical_count > 0 or health_score < 50:
-            overall_status = "CRITICAL_ATTENTION_REQUIRED"
-        elif abnormal_count >= 5 or health_score < 75:
-            overall_status = "MODERATE_RISK"
+            overall_status = "ATTENTION_REQUIRED"
+        elif abnormal_count >= 4 or health_score < 75:
+            overall_status = "MODERATE_VARIANCE"
         elif abnormal_count >= 1:
             overall_status = "MILD_VARIANCE"
         else:
@@ -354,5 +370,5 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
         "normalCount": total_evaluated - abnormal_count,
         "healthScore": health_score,
         "overallStatus": overall_status,
-        "doctorConsultationRecommended": abnormal_count >= 2 or critical_count > 0
+        "doctorConsultationRecommended": abnormal_count >= 2 or critical_count > 0 or (bili_total is not None and bili_total > 1.2)
     }

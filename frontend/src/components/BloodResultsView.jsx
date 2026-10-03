@@ -305,25 +305,25 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
                     <span 
                       className="format-badge"
                       style={{ 
-                        color: item.likelihood === 'High' ? 'var(--accent-rose)' : 'var(--accent-amber)',
-                        borderColor: item.likelihood === 'High' ? 'rgba(244, 63, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)'
+                        color: (item.likelihood === 'High' || item.severity === 'High') ? 'var(--accent-rose)' : 'var(--accent-amber)',
+                        borderColor: (item.likelihood === 'High' || item.severity === 'High') ? 'rgba(244, 63, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)'
                       }}
                     >
-                      {item.likelihood} Likelihood
+                      {item.likelihood ? `${item.likelihood} Likelihood` : `${item.severity || 'Moderate'} Acuity`}
                     </span>
                   </div>
 
                   <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '10px' }}>
-                    {item.rationale}
+                    {item.rationale || item.recommendation}
                   </p>
 
-                  {item.primaryIndicators && item.primaryIndicators.length > 0 && (
+                  {(item.primaryIndicators || item.evidence) && (item.primaryIndicators || item.evidence).length > 0 && (
                     <div>
                       <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Contributing Markers:
+                        Clinical Evidence:
                       </span>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
-                        {item.primaryIndicators.map(marker => (
+                        {(item.primaryIndicators || item.evidence).map(marker => (
                           <span key={marker} className="indicator-pill">
                             {marker}
                           </span>

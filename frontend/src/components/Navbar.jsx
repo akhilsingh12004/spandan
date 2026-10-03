@@ -19,9 +19,9 @@ export default function Navbar() {
       <div className="navbar-inner">
         <Link to="/" className="navbar-logo" id="logo-link">
           <div className="navbar-logo-icon">
-            <Activity size={22} />
+            <Activity size={18} />
           </div>
-          <span>Spandan <span className="text-gradient">AI</span></span>
+          <span>Spandan AI</span>
         </Link>
 
         <div className={`navbar-links ${isOpen ? 'open' : ''}`}>
@@ -44,7 +44,7 @@ export default function Navbar() {
           id="mobile-menu-toggle"
           aria-label="Toggle menu"
         >
-          {isOpen ? <X size={20} /> : <Menu size={20} />}
+          {isOpen ? <X size={18} /> : <Menu size={18} />}
         </button>
       </div>
     </nav>

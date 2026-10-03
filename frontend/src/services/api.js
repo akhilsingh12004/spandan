@@ -236,7 +236,65 @@ export function simulateSkinPrediction() {
   return skinResult
 }
 
-export function simulateBloodPrediction() {
+export function simulateBloodPrediction(hint = '') {
+  const hintStr = typeof hint === 'string' ? hint.toLowerCase() : JSON.stringify(hint).toLowerCase()
+  const isJaundice = hintStr.includes('jaundice') || hintStr.includes('bilirubin') || hintStr.includes('lft') || hintStr.includes('liver') || hintStr.includes('sgpt')
+
+  if (isJaundice) {
+    const parameters = [
+      { canonicalName: 'Total Bilirubin', value: 4.5, unit: 'mg/dL', refLow: 0.2, refHigh: 1.2, status: 'HIGH', panel: 'Liver Function Test (LFT)', significance: 'Bile pigment from red cell breakdown; high causes clinical jaundice', deviationPercent: 275.0 },
+      { canonicalName: 'Direct Bilirubin', value: 2.2, unit: 'mg/dL', refLow: 0.0, refHigh: 0.3, status: 'HIGH', panel: 'Liver Function Test (LFT)', significance: 'Conjugated bilirubin cleared via bile ducts', deviationPercent: 633.0 },
+      { canonicalName: 'Indirect Bilirubin', value: 2.3, unit: 'mg/dL', refLow: 0.1, refHigh: 0.9, status: 'HIGH', panel: 'Liver Function Test (LFT)', significance: 'Unconjugated bilirubin prior to hepatic processing', deviationPercent: 155.0 },
+      { canonicalName: 'ALT (SGPT)', value: 68.0, unit: 'U/L', refLow: 7, refHigh: 56, status: 'HIGH', panel: 'Liver Function Test (LFT)', significance: 'Intracellular liver enzyme; indicates hepatocellular strain', deviationPercent: 21.4 },
+      { canonicalName: 'AST (SGOT)', value: 54.0, unit: 'U/L', refLow: 10, refHigh: 40, status: 'HIGH', panel: 'Liver Function Test (LFT)', significance: 'Transaminase enzyme in liver tissue', deviationPercent: 35.0 },
+      { canonicalName: 'Alkaline Phosphatase (ALP)', value: 215.0, unit: 'U/L', refLow: 44, refHigh: 147, status: 'HIGH', panel: 'Liver Function Test (LFT)', significance: 'Biliary epithelium enzyme; high indicates cholestasis or bile outflow resistance', deviationPercent: 46.2 },
+      { canonicalName: 'Albumin', value: 3.8, unit: 'g/dL', refLow: 3.5, refHigh: 5.5, status: 'NORMAL', panel: 'Liver Function Test (LFT)', significance: 'Major circulating liver protein; normal reflects preserved synthetic capacity', deviationPercent: 0 },
+      { canonicalName: 'Total Protein', value: 7.1, unit: 'g/dL', refLow: 6.0, refHigh: 8.3, status: 'NORMAL', panel: 'Liver Function Test (LFT)', significance: 'Serum proteins', deviationPercent: 0 },
+      { canonicalName: 'Hemoglobin', value: 13.4, unit: 'g/dL', refLow: 12.0, refHigh: 17.5, status: 'NORMAL', panel: 'Complete Blood Count (CBC)', significance: 'Oxygen carrying capacity', deviationPercent: 0 },
+      { canonicalName: 'WBC Count', value: 7600, unit: '/µL', refLow: 4000, refHigh: 11000, status: 'NORMAL', panel: 'Complete Blood Count (CBC)', significance: 'Immune defense', deviationPercent: 0 },
+      { canonicalName: 'Platelet Count', value: 235000, unit: '/µL', refLow: 150000, refHigh: 450000, status: 'NORMAL', panel: 'Complete Blood Count (CBC)', significance: 'Hemostasis and clotting', deviationPercent: 0 },
+      { canonicalName: 'Creatinine', value: 0.85, unit: 'mg/dL', refLow: 0.6, refHigh: 1.2, status: 'NORMAL', panel: 'Kidney Function Test (KFT)', significance: 'Renal clearance function', deviationPercent: 0 },
+    ]
+
+    const conditions = [
+      {
+        condition: 'Obstructive / Cholestatic Jaundice (Biliary Outflow Impairment)',
+        likelihood: 'High',
+        severity: 'Moderate',
+        rationale: 'Markedly elevated Total Bilirubin (4.5 mg/dL) with elevated Direct Bilirubin (2.2 mg/dL) and Alkaline Phosphatase (215 U/L) points toward biliary outflow resistance or cholestasis.',
+        primaryIndicators: ['Total Bilirubin', 'Direct Bilirubin', 'Alkaline Phosphatase (ALP)']
+      },
+      {
+        condition: 'Elevated Liver Transaminases (Hepatocellular Strain)',
+        likelihood: 'Moderate',
+        severity: 'Moderate',
+        rationale: 'Concomitant elevations in ALT (68 U/L) and AST (54 U/L) indicate secondary hepatocyte irritation.',
+        primaryIndicators: ['ALT (SGPT)', 'AST (SGOT)']
+      }
+    ]
+
+    const bloodResult = {
+      module: 'blood',
+      parameters,
+      conditions,
+      summary: {
+        totalEvaluated: parameters.length,
+        abnormalCount: 6,
+        criticalCount: 1,
+        normalCount: 6,
+        healthScore: 68,
+        overallStatus: 'Hyperbilirubinemia Flagged',
+        doctorConsultationRecommended: true
+      },
+      rawTextExtracted: 'Automated Hepatic Panel & Liver Function Analysis.',
+      processingTime: '0.78s',
+      disclaimer: 'This tool is for educational and decision-support purposes only and is not a substitute for professional medical diagnosis. Always consult a qualified healthcare provider.'
+    }
+    bloodResult.aiExplanation = generateLocalExplanation(bloodResult, 'blood')
+    return bloodResult
+  }
+
+  // Standard multi-panel fallback (Anemia / Metabolic)
   const parameters = [
     { canonicalName: 'Hemoglobin', value: 10.4, unit: 'g/dL', refLow: 13.5, refHigh: 17.5, status: 'LOW', panel: 'Complete Blood Count (CBC)', significance: 'Oxygen delivery in blood; low indicates anemia', deviationPercent: -23.0 },
     { canonicalName: 'WBC Count', value: 12400, unit: '/µL', refLow: 4000, refHigh: 11000, status: 'HIGH', panel: 'Complete Blood Count (CBC)', significance: 'Immune defense; high indicates infection or inflammation', deviationPercent: 12.7 },
@@ -244,17 +302,11 @@ export function simulateBloodPrediction() {
     { canonicalName: 'Platelet Count', value: 240000, unit: '/µL', refLow: 150000, refHigh: 450000, status: 'NORMAL', panel: 'Complete Blood Count (CBC)', significance: 'Clotting and hemostasis', deviationPercent: 0 },
     { canonicalName: 'Hematocrit (HCT)', value: 32.5, unit: '%', refLow: 41.0, refHigh: 50.0, status: 'LOW', panel: 'Complete Blood Count (CBC)', significance: 'Percentage volume of red blood cells in blood', deviationPercent: -20.7 },
     { canonicalName: 'MCV', value: 74.0, unit: 'fL', refLow: 80.0, refHigh: 100.0, status: 'LOW', panel: 'Complete Blood Count (CBC)', significance: 'Average red blood cell size; low indicates microcytosis', deviationPercent: -7.5 },
-    { canonicalName: 'Total Cholesterol', value: 224, unit: 'mg/dL', refLow: 125, refHigh: 200, status: 'HIGH', panel: 'Lipid Profile', significance: 'Total circulating blood cholesterol', deviationPercent: 12.0 },
-    { canonicalName: 'LDL Cholesterol', value: 142, unit: 'mg/dL', refLow: 0, refHigh: 100, status: 'HIGH', panel: 'Lipid Profile', significance: 'Atherogenic lipoprotein ("bad" cholesterol)', deviationPercent: 42.0 },
-    { canonicalName: 'HDL Cholesterol', value: 38, unit: 'mg/dL', refLow: 40, refHigh: 60, status: 'LOW', panel: 'Lipid Profile', significance: 'Cardioprotective lipoprotein ("good" cholesterol)', deviationPercent: -5.0 },
-    { canonicalName: 'Triglycerides', value: 185, unit: 'mg/dL', refLow: 0, refHigh: 150, status: 'HIGH', panel: 'Lipid Profile', significance: 'Blood lipids stored in fat cells', deviationPercent: 23.3 },
-    { canonicalName: 'Fasting Blood Glucose', value: 118, unit: 'mg/dL', refLow: 70, refHigh: 99, status: 'HIGH', panel: 'Blood Sugar & Glycemic', significance: 'Baseline metabolic glucose levels', deviationPercent: 19.2 },
-    { canonicalName: 'HbA1c', value: 6.1, unit: '%', refLow: 4.0, refHigh: 5.6, status: 'HIGH', panel: 'Blood Sugar & Glycemic', significance: '3-month average blood glucose control', deviationPercent: 8.9 },
-    { canonicalName: 'ALT (SGPT)', value: 64, unit: 'U/L', refLow: 7, refHigh: 56, status: 'HIGH', panel: 'Liver Function Test (LFT)', significance: 'Liver-specific transaminase enzyme', deviationPercent: 14.3 },
-    { canonicalName: 'AST (SGOT)', value: 48, unit: 'U/L', refLow: 10, refHigh: 40, status: 'HIGH', panel: 'Liver Function Test (LFT)', significance: 'Transaminase enzyme in liver and heart', deviationPercent: 20.0 },
-    { canonicalName: 'Total Bilirubin', value: 0.9, unit: 'mg/dL', refLow: 0.2, refHigh: 1.2, status: 'NORMAL', panel: 'Liver Function Test (LFT)', significance: 'Heme breakdown product', deviationPercent: 0 },
+    { canonicalName: 'Total Cholesterol', value: 195, unit: 'mg/dL', refLow: 125, refHigh: 200, status: 'NORMAL', panel: 'Lipid Profile', significance: 'Total circulating blood cholesterol', deviationPercent: 0 },
+    { canonicalName: 'Fasting Blood Glucose', value: 92, unit: 'mg/dL', refLow: 70, refHigh: 99, status: 'NORMAL', panel: 'Blood Sugar & Glycemic', significance: 'Baseline metabolic glucose levels', deviationPercent: 0 },
+    { canonicalName: 'ALT (SGPT)', value: 28, unit: 'U/L', refLow: 7, refHigh: 56, status: 'NORMAL', panel: 'Liver Function Test (LFT)', significance: 'Liver-specific transaminase enzyme', deviationPercent: 0 },
+    { canonicalName: 'Total Bilirubin', value: 0.8, unit: 'mg/dL', refLow: 0.2, refHigh: 1.2, status: 'NORMAL', panel: 'Liver Function Test (LFT)', significance: 'Heme breakdown product', deviationPercent: 0 },
     { canonicalName: 'Creatinine', value: 0.95, unit: 'mg/dL', refLow: 0.7, refHigh: 1.3, status: 'NORMAL', panel: 'Kidney Function Test (KFT)', significance: 'Muscle breakdown byproduct cleared by kidneys', deviationPercent: 0 },
-    { canonicalName: 'TSH', value: 3.2, unit: 'mIU/L', refLow: 0.4, refHigh: 4.0, status: 'NORMAL', panel: 'Thyroid Panel', significance: 'Pituitary signal regulating thyroid hormone output', deviationPercent: 0 },
     { canonicalName: 'Vitamin D (25-OH)', value: 18.0, unit: 'ng/mL', refLow: 30.0, refHigh: 100.0, status: 'LOW', panel: 'Vitamins & Minerals', significance: 'Bone density, immunity, and endocrine support', deviationPercent: -40.0 },
     { canonicalName: 'C-Reactive Protein (CRP)', value: 4.8, unit: 'mg/L', refLow: 0, refHigh: 3.0, status: 'HIGH', panel: 'Inflammatory Markers', significance: 'Acute systemic inflammation biomarker', deviationPercent: 60.0 }
   ]
@@ -268,38 +320,17 @@ export function simulateBloodPrediction() {
       primaryIndicators: ['Hemoglobin', 'RBC Count', 'Hematocrit (HCT)', 'MCV']
     },
     {
-      condition: 'Dyslipidemia & Cardiovascular Risk',
-      likelihood: 'High',
-      severity: 'Moderate',
-      rationale: 'Elevated Total Cholesterol (224 mg/dL), LDL (142 mg/dL), Triglycerides (185 mg/dL), and low HDL (38 mg/dL) demonstrate an atherogenic lipid pattern.',
-      primaryIndicators: ['Total Cholesterol', 'LDL Cholesterol', 'HDL Cholesterol', 'Triglycerides']
-    },
-    {
-      condition: 'Prediabetes / Impaired Fasting Glucose',
-      likelihood: 'High',
-      severity: 'Mild',
-      rationale: 'Fasting Blood Glucose (118 mg/dL) and HbA1c (6.1%) fall into the impaired fasting glycemia/prediabetic diagnostic zone.',
-      primaryIndicators: ['Fasting Blood Glucose', 'HbA1c']
-    },
-    {
       condition: 'Hypovitaminosis D',
       likelihood: 'High',
       severity: 'Mild',
-      rationale: '25-OH Vitamin D is 18.0 ng/mL, well below the optimal 30 ng/mL benchmark.',
+      rationale: '25-OH Vitamin D is 18.0 ng/mL, below the optimal 30 ng/mL benchmark.',
       primaryIndicators: ['Vitamin D (25-OH)']
-    },
-    {
-      condition: 'Mild Hepatic Strain (Elevated Transaminases)',
-      likelihood: 'Moderate',
-      severity: 'Mild',
-      rationale: 'Concomitant elevation in ALT (64 U/L) and AST (48 U/L) indicates mild hepatocellular stress.',
-      primaryIndicators: ['ALT (SGPT)', 'AST (SGOT)']
     },
     {
       condition: 'Systemic Inflammatory Response',
       likelihood: 'High',
       severity: 'Mild',
-      rationale: 'Elevated CRP (4.8 mg/L) combined with leukocytosis (WBC 12,400 /µL) reflects active inflammation.',
+      rationale: 'Elevated CRP (4.8 mg/L) combined with leukocytosis (WBC 12,400 /µL) reflects active immune response.',
       primaryIndicators: ['C-Reactive Protein (CRP)', 'WBC Count']
     }
   ]
@@ -310,14 +341,14 @@ export function simulateBloodPrediction() {
     conditions,
     summary: {
       totalEvaluated: parameters.length,
-      abnormalCount: 11,
+      abnormalCount: 6,
       criticalCount: 0,
-      normalCount: 8,
-      healthScore: 68,
-      overallStatus: 'Abnormalities Detected',
+      normalCount: 7,
+      healthScore: 78,
+      overallStatus: 'Variances Detected',
       doctorConsultationRecommended: true
     },
-    rawTextExtracted: 'Simulated multi-panel automated laboratory analysis.',
+    rawTextExtracted: 'Simulated automated laboratory analysis.',
     processingTime: '0.85s',
     disclaimer: 'This tool is for educational and decision-support purposes only and is not a substitute for professional medical diagnosis. Always consult a qualified healthcare provider.'
   }
@@ -435,75 +466,103 @@ export function generateLocalExplanation(reportData, module = 'blood', readingLe
       : `All analyzed laboratory markers fall within healthy adult physiological reference ranges, yielding a strong metabolic score of ${healthScore}/100. Red blood cell reserves, metabolic clearance, and cardiovascular lipids are well balanced.`,
     organSystems: [
       {
+        id: 'hepatic',
+        name: 'Hepatic & Biliary System (Liver & Jaundice)',
+        icon: 'Shield',
+        status: conditions.some(c => c.condition.toLowerCase().includes('jaundice') || c.condition.toLowerCase().includes('hepatic') || c.condition.toLowerCase().includes('bilirubin')) ? 'ATTENTION_NEEDED' : 'OPTIMAL',
+        summary: conditions.some(c => c.condition.toLowerCase().includes('jaundice'))
+          ? 'Bilirubin and biliary enzymes reflect liver filtration, bile conjugation, and clearance.'
+          : 'Transaminases reflect hepatocyte integrity and metabolic processing of nutrients.',
+        relevantMarkers: reportData.parameters?.filter(p => p.panel === 'Liver Function Test (LFT)').map(p => `${p.canonicalName}: ${p.value} ${p.unit || ''}`).slice(0, 4) || ['ALT: Normal', 'Total Bilirubin: Normal'],
+        physiologicalMechanism: 'The liver conjugates bilirubin from red blood cell turnover and excretes it via bile ducts into the digestive tract.'
+      },
+      {
         id: 'hematology',
         name: 'Blood & Cellular Oxygenation (Hematology)',
         icon: 'Drop',
         status: conditions.some(c => c.condition.toLowerCase().includes('anemia')) ? 'ATTENTION_NEEDED' : 'OPTIMAL',
         summary: 'Hemoglobin and red cell indices reflect oxygen transport capacity to peripheral tissues and brain.',
-        relevantMarkers: ['Hemoglobin: 10.4 g/dL (Low)', 'MCV: 74.0 fL (Low)'],
-        physiologicalMechanism: 'Hemoglobin binds oxygen in the pulmonary capillaries and releases it into working tissues.'
-      },
-      {
-        id: 'cardiovascular',
-        name: 'Cardiovascular & Lipid Transport',
-        icon: 'Heart',
-        status: conditions.some(c => c.condition.toLowerCase().includes('lipid') || c.condition.toLowerCase().includes('cholesterol')) ? 'ATTENTION_NEEDED' : 'OPTIMAL',
-        summary: 'Circulating lipoproteins indicate atherogenic particle density and vessel wall protection.',
-        relevantMarkers: ['Total Cholesterol: 224 mg/dL', 'LDL: 142 mg/dL', 'HDL: 38 mg/dL'],
-        physiologicalMechanism: 'LDL particles transport cholesterol to peripheral tissues; elevated circulating levels can deposit into arterial intima.'
+        relevantMarkers: reportData.parameters?.filter(p => p.panel === 'Complete Blood Count (CBC)').map(p => `${p.canonicalName}: ${p.value} ${p.unit || ''}`).slice(0, 3) || ['Hemoglobin: Normal'],
+        physiologicalMechanism: 'Hemoglobin binds oxygen in pulmonary capillaries and delivers it throughout active tissues.'
       },
       {
         id: 'metabolic',
         name: 'Metabolic & Glycemic Balance',
         icon: 'Zap',
         status: conditions.some(c => c.condition.toLowerCase().includes('diabetes') || c.condition.toLowerCase().includes('glucose')) ? 'ATTENTION_NEEDED' : 'OPTIMAL',
-        summary: 'Fasting glucose and HbA1c reflect baseline insulin sensitivity and 3-month sugar saturation.',
-        relevantMarkers: ['Fasting Glucose: 118 mg/dL', 'HbA1c: 6.1%'],
+        summary: 'Fasting glucose and HbA1c reflect baseline insulin sensitivity and 3-month glycemic stability.',
+        relevantMarkers: reportData.parameters?.filter(p => p.panel?.includes('Sugar') || p.panel?.includes('Glycemic')).map(p => `${p.canonicalName}: ${p.value} ${p.unit || ''}`).slice(0, 2) || ['Fasting Glucose: Normal'],
         physiologicalMechanism: 'Insulin signaling directs glucose from bloodstream into myocytes and hepatocytes for energy storage.'
       },
       {
-        id: 'hepatic',
-        name: 'Hepatic & Metabolic Detoxification',
-        icon: 'Shield',
-        status: conditions.some(c => c.condition.toLowerCase().includes('hepatic') || c.condition.toLowerCase().includes('liver')) ? 'ATTENTION_NEEDED' : 'OPTIMAL',
-        summary: 'Transaminases reflect hepatocyte integrity and metabolic processing of lipids and carbohydrates.',
-        relevantMarkers: ['ALT (SGPT): 64 U/L', 'AST (SGOT): 48 U/L'],
-        physiologicalMechanism: 'When hepatocytes face metabolic overload, intracellular transaminases leak into peripheral circulation.'
+        id: 'cardiovascular',
+        name: 'Cardiovascular & Lipid Transport',
+        icon: 'Heart',
+        status: conditions.some(c => c.condition.toLowerCase().includes('lipid') || c.condition.toLowerCase().includes('cholesterol') || c.condition.toLowerCase().includes('dyslipidemia')) ? 'ATTENTION_NEEDED' : 'OPTIMAL',
+        summary: 'Circulating lipoproteins indicate atherogenic particle density and vessel wall protection.',
+        relevantMarkers: reportData.parameters?.filter(p => p.panel === 'Lipid Profile').map(p => `${p.canonicalName}: ${p.value} ${p.unit || ''}`).slice(0, 3) || ['Cholesterol: Normal'],
+        physiologicalMechanism: 'LDL particles transport cholesterol to tissues; excessive circulating levels can deposit into arterial intima.'
       }
     ],
     lifestylePrescription: {
-      nutrition: [
-        'Boost bioavailable iron: combine dark leafy greens, lentils, and seeds with citrus (Vitamin C) to maximize absorption.',
-        'Increase soluble fiber (oats, chia seeds, legumes) daily to bind and clear circulating LDL cholesterol.',
-        'Adopt low-glycemic meal structures with complex carbohydrates and lean proteins to stabilize blood glucose.'
-      ],
+      nutrition: conditions.some(c => c.condition.toLowerCase().includes('jaundice'))
+        ? [
+            'Follow a light, easily digestible, low-fat liver-friendly diet (steamed vegetables, papaya, apples, coconut water, khichdi/porridge).',
+            'Avoid heavy oils, deep-fried snacks, clarified butter (ghee), and strong spices.',
+            'Maintain optimal fluid intake with 2.5 to 3.5 liters of clean water and broths daily.'
+          ]
+        : [
+            'Boost bioavailable iron: combine dark leafy greens, lentils, and seeds with citrus (Vitamin C) to maximize absorption.',
+            'Increase dietary fiber (oats, chia seeds, legumes) daily to bind and clear circulating LDL cholesterol.',
+            'Adopt low-glycemic meal structures with complex carbohydrates and lean proteins to stabilize blood glucose.'
+          ],
       exercise: [
-        'Perform 150 minutes of moderate aerobic activity weekly (brisk walking, cycling) to elevate protective HDL.',
-        'Take a 10-15 minute walk after meals to promote non-insulin mediated muscle glucose clearance.'
+        'Engage in gentle daily movement (walking, light stretching) as energy permits.',
+        'Avoid intense physical overexertion while liver enzymes or acute markers are elevated.'
       ],
       supplements: [
-        'Discuss Vitamin D3 (e.g. 60,000 IU weekly under clinical advice) and elemental iron supplementation with your doctor.'
+        'Discuss targeted supplements or medication adjustments directly with your physician.'
       ],
       habits: [
         'Drink 2.5–3 liters of water daily to support hepatic and renal clearance.',
-        'Prioritize 7-8 hours of restful sleep to regulate morning cortisol and insulin sensitivity.'
+        'Strictly avoid alcohol and unnecessary hepatotoxic medications.',
+        'Prioritize 7-8 hours of restful sleep for cellular recovery.'
       ]
     },
     doctorChecklist: {
-      questions: [
-        'Given my low hemoglobin and MCV, do you recommend checking serum ferritin and total iron binding capacity?',
-        'What is my 10-year cardiovascular risk score, and should we focus on 3 months of strict diet or medication for LDL?',
-        'What is my target HbA1c goal, and when should we re-test fasting glucose?',
-        'Would an abdominal ultrasound be helpful to evaluate for fatty liver changes?'
-      ],
-      recommendedSpecialists: ['Primary Care Physician', 'Endocrinologist', 'Cardiologist'],
+      questions: conditions.some(c => c.condition.toLowerCase().includes('jaundice'))
+        ? [
+            'What is the primary etiology of my elevated bilirubin (e.g. biliary obstruction, acute hepatitis, or hemolysis)?',
+            'Do you recommend an Abdominal Ultrasound (USG) or MRCP to inspect the gallbladder and bile ducts for stones or inflammation?',
+            'Should we perform a viral hepatitis serology screen (Hepatitis A, B, C, and E)?',
+            'Are any of my current medications or supplements contributing to these liver findings?'
+          ]
+        : [
+            'Given my test results, what specific follow-up diagnostics or re-testing interval do you recommend?',
+            'Would nutritional modifications be sufficient or is medical therapy indicated?',
+            'What lifestyle habits will have the most impactful positive influence on these parameters?'
+          ],
+      recommendedSpecialists: conditions.some(c => c.condition.toLowerCase().includes('jaundice') || c.condition.toLowerCase().includes('hepatic'))
+        ? ['Gastroenterologist / Hepatologist', 'Primary Care Physician']
+        : ['Primary Care Physician', 'Endocrinologist'],
       followUpTimeline: abnormalCount >= 5 ? 'Within 1 to 2 weeks' : 'Within 1 month'
     },
-    redFlags: [
-      'Crushing chest pain or pressure radiating to arm or jaw',
-      'Sudden severe breathlessness, fainting, or acute dizziness',
-      'Dark tarry stools or extreme unexplained weakness'
-    ],
+    redFlags: conditions.some(c => c.condition.toLowerCase().includes('jaundice') || c.condition.toLowerCase().includes('bilirubin'))
+      ? [
+          'Noticeable deepening yellow discoloration of the eyes (sclera) or skin',
+          'Clay-colored (pale/white) stools or persistently very dark/tea-colored urine',
+          'Severe persistent right upper abdominal pain or sudden high fever with chills',
+          'Severe confusion, persistent disorientation, or extreme lethargy'
+        ]
+      : conditions.some(c => c.condition.toLowerCase().includes('lipid') || c.condition.toLowerCase().includes('cardiovascular'))
+      ? [
+          'Crushing chest pain or pressure radiating to arm or jaw',
+          'Sudden severe breathlessness, fainting, or acute dizziness'
+        ]
+      : [
+          'High persistent fever accompanied by severe shivering or altered mental state',
+          'Sudden severe weakness, persistent vomiting, or inability to retain fluids'
+        ],
     readingLevel,
     generatedAt: new Date().toLocaleTimeString()
   }
