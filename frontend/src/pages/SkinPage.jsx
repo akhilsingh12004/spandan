@@ -73,7 +73,7 @@ export default function SkinPage() {
               style={{ marginBottom: '24px' }}
               id="back-to-home"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={14} />
               Back to Home
             </button>
 
@@ -81,26 +81,24 @@ export default function SkinPage() {
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center', 
-              gap: '16px', 
+              gap: '14px', 
               marginBottom: '16px' 
             }}>
               <div style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: 'var(--radius-lg)',
-                background: 'rgba(6, 214, 160, 0.1)',
+                width: '48px',
+                height: '48px',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--accent-subtle)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--accent-cyan)',
+                color: 'var(--accent)',
               }}>
-                <ScanEye size={28} />
+                <ScanEye size={24} />
               </div>
             </div>
 
-            <h1 className="text-h1">
-              <span className="text-gradient-skin">Skin Disease</span> Prediction
-            </h1>
+            <h1 className="text-h1">Skin Disease Prediction</h1>
             <p>
               Upload a clear photo of a skin lesion or affected area for AI-powered dermatological analysis
             </p>
@@ -123,17 +121,17 @@ export default function SkinPage() {
           {/* Analyze Button */}
           {selectedImage && (
             <motion.div
-              style={{ textAlign: 'center', marginTop: '32px' }}
+              style={{ textAlign: 'center', marginTop: '28px' }}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
             >
               <button 
-                className="btn btn-skin btn-lg"
+                className="btn btn-primary btn-lg"
                 onClick={handleAnalyze}
                 id="analyze-skin-btn"
               >
-                <Zap size={20} />
+                <Zap size={18} />
                 Analyze Skin Image
               </button>
             </motion.div>
@@ -143,16 +141,16 @@ export default function SkinPage() {
           <motion.div
             style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
-              gap: '16px', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+              gap: '14px', 
               marginTop: '48px' 
             }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <div className="glass-card-static" style={{ padding: '24px' }}>
-              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--accent-cyan)', marginBottom: '8px' }}>
+            <div className="glass-card-static" style={{ padding: '20px' }}>
+              <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--accent)', marginBottom: '6px' }}>
                 Photo Tips
               </h4>
               <p className="text-small">
@@ -161,8 +159,8 @@ export default function SkinPage() {
                 results.
               </p>
             </div>
-            <div className="glass-card-static" style={{ padding: '24px' }}>
-              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--accent-cyan)', marginBottom: '8px' }}>
+            <div className="glass-card-static" style={{ padding: '20px' }}>
+              <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--accent)', marginBottom: '6px' }}>
                 AI Pipeline
               </h4>
               <p className="text-small">
@@ -170,8 +168,8 @@ export default function SkinPage() {
                 EfficientNet/ResNet feature extraction → Classification.
               </p>
             </div>
-            <div className="glass-card-static" style={{ padding: '24px' }}>
-              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--accent-cyan)', marginBottom: '8px' }}>
+            <div className="glass-card-static" style={{ padding: '20px' }}>
+              <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--accent)', marginBottom: '6px' }}>
                 Conditions Detected
               </h4>
               <p className="text-small">

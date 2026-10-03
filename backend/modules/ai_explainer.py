@@ -127,33 +127,42 @@ def generate_blood_report_explanation(report_data: Dict[str, Any], reading_level
             "physiologicalMechanism": "HbA1c measures the percentage of red blood cells coated in sugar over their 90-120 day lifespan, providing an accurate 3-month panoramic view of glycemic stress."
         })
 
-    # D. Hepatic Function (Liver)
+    # D. Hepatic & Biliary Function (Liver & Jaundice)
     liver_params = [p for p in parameters if p.get("panel") == "Liver Function Test (LFT)" or p.get("canonicalName") in [
-        "ALT (SGPT)", "AST (SGOT)", "Total Bilirubin", "Alkaline Phosphatase (ALP)", "Albumin"
+        "Total Bilirubin", "Direct Bilirubin", "Indirect Bilirubin", "ALT (SGPT)", "AST (SGOT)", 
+        "Alkaline Phosphatase (ALP)", "Gamma-Glutamyl Transferase (GGT)", "Albumin", "Total Protein"
     ]]
     if liver_params:
         liver_abnormal = [p for p in liver_params if p.get("status") != "NORMAL"]
         alt = param_map.get("ALT (SGPT)", {}).get("value")
         ast = param_map.get("AST (SGOT)", {}).get("value")
+        bili = param_map.get("Total Bilirubin", {}).get("value")
+        alp = param_map.get("Alkaline Phosphatase (ALP)", {}).get("value")
 
-        if (alt and alt > 150) or (ast and ast > 120):
+        if bili and bili > 2.5:
+            l_status = "CRITICAL_ALERT" if bili > 4.0 else "ATTENTION_NEEDED"
+            l_summary = f"Significant Hyperbilirubinemia (Total Bilirubin: {bili} mg/dL). Bilirubin accumulation causes clinical jaundice with yellowing of the sclera (eyes) and skin, darkened urine, and requires timely evaluation by a gastroenterologist or hepatologist."
+        elif (alt and alt > 150) or (ast and ast > 120):
             l_status = "CRITICAL_ALERT"
-            l_summary = "Pronounced transaminase leakage into bloodstream, suggesting acute hepatocellular irritation or metabolic overload."
+            l_summary = "Pronounced transaminase leakage into bloodstream, suggesting acute hepatocellular irritation or active hepatic inflammation."
+        elif bili and bili > 1.2:
+            l_status = "ATTENTION_NEEDED"
+            l_summary = f"Elevated Total Bilirubin ({bili} mg/dL) reflecting subclinical or early jaundice. Hepatic bile clearance or red blood cell breakdown rate warrants investigation."
         elif liver_abnormal:
             l_status = "ATTENTION_NEEDED"
-            l_summary = "Mild elevations in transaminases (ALT/AST). Frequently linked with metabolic fatty infiltration, sluggish lipid processing, or medication-related clearance load."
+            l_summary = "Mild elevations in liver enzymes (ALT/AST/ALP). Frequently linked with metabolic fatty infiltration, sluggish lipid processing, or medication-related clearance load."
         else:
             l_status = "OPTIMAL"
             l_summary = "Hepatic enzymes and bilirubin clearance are within normal intervals, reflecting healthy liver detoxification and protein synthesis."
 
         organ_systems.append({
             "id": "hepatic",
-            "name": "Hepatic & Metabolic Detoxification",
+            "name": "Hepatic & Biliary System (Liver & Jaundice)",
             "icon": "Shield",
             "status": l_status,
             "summary": l_summary,
-            "relevantMarkers": [f"{p['canonicalName']}: {p['value']} {p.get('unit', '')}" for p in liver_params[:4]],
-            "physiologicalMechanism": "ALT and AST are intracellular enzymes residing inside hepatocytes. When liver cells experience metabolic strain or inflammation, these enzymes seep into systemic circulation."
+            "relevantMarkers": [f"{p['canonicalName']}: {p['value']} {p.get('unit', '')}" for p in liver_params[:5]],
+            "physiologicalMechanism": "The liver processes and conjugates bilirubin (a breakdown product of red blood cells) to excrete it through bile. Transaminases (ALT/AST) indicate hepatocyte cellular integrity, while Alkaline Phosphatase (ALP) reflects biliary duct flow."
         })
 
     # E. Renal & Electrolyte Regulation (Kidneys)
@@ -278,8 +287,13 @@ def generate_blood_report_explanation(report_data: Dict[str, Any], reading_level
         exercise_tips.append("Perform a 10-15 minute gentle walk immediately following lunch and dinner to stimulate non-insulin mediated muscle glucose uptake.")
         lifestyle_tips.append("Prioritize 7-8 hours of sound sleep; chronic sleep deprivation increases evening cortisol and morning insulin resistance.")
 
-    # Liver strain
-    if "hepatic" in cond_str or (param_map.get("ALT (SGPT)", {}).get("status") == "HIGH"):
+    # Liver / Jaundice / Biliary
+    has_jaundice = "jaundice" in cond_str or "bilirubin" in cond_str or (param_map.get("Total Bilirubin", {}).get("status") in ["HIGH", "CRITICAL_HIGH"])
+    if has_jaundice:
+        nutrition_tips.append("Adopt a gentle, easily digestible, low-fat liver-support diet (steamed vegetables, papaya, apples, coconut water, light lentils/khichdi). Avoid oily, deep-fried foods, heavy spices, and butter.")
+        lifestyle_tips.append("Drink 2.5 to 3.5 liters of clean water and oral fluids daily to support bile flow and hepatic toxin clearance.")
+        lifestyle_tips.append("Strictly avoid all alcohol and avoid over-the-counter paracetamol/acetaminophen without clinical guidance.")
+    elif "hepatic" in cond_str or (param_map.get("ALT (SGPT)", {}).get("status") == "HIGH"):
         nutrition_tips.append("Minimize ultra-processed foods, high-fructose corn syrups, and alcohol to diminish hepatic steatosis (fatty liver) stress.")
         lifestyle_tips.append("Maintain optimal hydration (2.5 - 3 liters water daily) to facilitate hepatic metabolic byproduct filtration.")
 
@@ -298,28 +312,49 @@ def generate_blood_report_explanation(report_data: Dict[str, Any], reading_level
 
     # 4. Doctor Consultation Checklist (High-Yield Questions)
     doctor_questions = []
+    if has_jaundice:
+        doctor_questions.append("What is the primary etiology of my elevated bilirubin (e.g. biliary obstruction, acute hepatitis, or hemolysis)?")
+        doctor_questions.append("Do you recommend an Abdominal Ultrasound (USG) or MRCP to inspect the gallbladder and bile ducts for stones or inflammation?")
+        doctor_questions.append("Should we perform a viral hepatitis serology screen (Hepatitis A, B, C, and E)?")
     if any("anemia" in c.get("condition", "").lower() for c in conditions):
         doctor_questions.append("Given my low hemoglobin / MCV, do you recommend a full iron panel (serum ferritin, TIBC, transferrin saturation)?")
     if any("dyslipidemia" in c.get("condition", "").lower() for c in conditions):
         doctor_questions.append("What is my calculated 10-year ASCVD cardiovascular risk score, and should we consider statin therapy or dietary modification first?")
     if any("diabetes" in c.get("condition", "").lower() or "prediabetes" in c.get("condition", "").lower() for c in conditions):
         doctor_questions.append("What is my target HbA1c goal, and when should we repeat the fasting glucose panel to evaluate progress?")
-    if any("hepatic" in c.get("condition", "").lower() for c in conditions):
+    if any("hepatic" in c.get("condition", "").lower() for c in conditions) and not has_jaundice:
         doctor_questions.append("Would an abdominal ultrasound be beneficial to check for hepatic steatosis (fatty liver changes)?")
     if any("vitamin d" in c.get("condition", "").lower() for c in conditions):
         doctor_questions.append("What dosage and duration of Vitamin D3 supplementation is ideal for my level?")
     
     # Generic valuable questions
     doctor_questions.append("Are any of my current medications or supplements contributing to these specific laboratory findings?")
-    doctor_questions.append("What is the optimal timeframe for a follow-up blood panel (e.g., 6 weeks, 3 months, or 6 months)?")
+    doctor_questions.append("What is the optimal timeframe for a follow-up blood panel (e.g., 2 weeks, 1 month, or 3 months)?")
 
-    # 5. Red Flag Signs (When to seek immediate attention)
-    red_flags = [
-        "Sudden chest pressure, tightness, or pain radiating to the jaw, neck, or left arm",
-        "Shortness of breath at rest or severe sudden dizziness / faintness",
-        "Noticeable dark, tarry stools, vomiting of blood, or extreme sudden pallor and weakness",
-        "Rapid heart palpitations accompanied by lightheadedness or confusion"
-    ]
+    # 5. Context-Aware Red Flag Signs (When to seek immediate medical attention)
+    red_flags = []
+    if has_jaundice:
+        red_flags.extend([
+            "Noticeable deepening yellow discoloration of the eyes (sclera) or skin",
+            "Clay-colored (pale/white) stools or persistently very dark/tea-colored urine",
+            "Severe persistent right upper abdominal pain or sudden high fever with chills",
+            "Severe confusion, persistent disorientation, or extreme lethargy (possible hepatic signs)"
+        ])
+    elif any("anemia" in c.get("condition", "").lower() for c in conditions):
+        red_flags.extend([
+            "Sudden severe breathlessness, fainting spells, or inability to perform basic movements",
+            "Dark, tarry black stools or vomiting of blood"
+        ])
+    elif any("dyslipidemia" in c.get("condition", "").lower() for c in conditions):
+        red_flags.extend([
+            "Crushing chest pressure or tightness radiating to left arm, neck, or jaw",
+            "Sudden severe shortness of breath or dizziness at rest"
+        ])
+    else:
+        red_flags.extend([
+            "High unremitting fever accompanied by shivering or confusion",
+            "Sudden severe weakness, persistent vomiting, or inability to retain fluids"
+        ])
 
     return {
         "module": "blood",

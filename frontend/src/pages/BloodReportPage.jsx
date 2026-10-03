@@ -17,8 +17,19 @@ import ProcessingOverlay from '../components/ProcessingOverlay'
 import Disclaimer from '../components/Disclaimer'
 import { predictBloodReport, simulateBloodPrediction } from '../services/api'
 
-// Quick pre-fill presets for manual lab parameter entry
 const LAB_PRESETS = {
+  jaundice: {
+    label: 'Jaundice / Liver Function (High Bilirubin, High ALT/AST/ALP)',
+    values: {
+      'Total Bilirubin': 4.5,
+      'Direct Bilirubin': 2.2,
+      'Indirect Bilirubin': 2.3,
+      'ALT (SGPT)': 68.0,
+      'AST (SGOT)': 54.0,
+      'Alkaline Phosphatase (ALP)': 215.0,
+      Albumin: 3.8,
+    }
+  },
   anemia: {
     label: 'Anemia Pattern (Low Hb, Low RBC, Low MCV)',
     values: {
@@ -142,7 +153,8 @@ export default function BloodReportPage() {
       results = await predictBloodReport(fileToUpload, manualPayload)
     } catch (error) {
       console.log('Backend blood analysis error or offline, fallback to simulation:', error)
-      results = simulateBloodPrediction()
+      const contextHint = selectedImage?.file?.name || JSON.stringify(manualDataMap)
+      results = simulateBloodPrediction(contextHint)
     }
 
     // Persist to session storage

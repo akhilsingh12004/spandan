@@ -13,7 +13,6 @@ import {
   BarChart3,
   FileCheck,
   FileText,
-  Sparkles
 } from 'lucide-react'
 import Disclaimer from '../components/Disclaimer'
 
@@ -39,9 +38,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            Multi-Modal Health{' '}
-            <span className="text-gradient">Diagnostic</span>{' '}
-            Assistant
+            Multi-Modal Health Diagnostic Assistant
           </motion.h1>
 
           <motion.p
@@ -61,17 +58,17 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
-            <Link to="/cardiac" className="btn btn-cardiac btn-lg" id="cta-cardiac">
-              <HeartPulse size={20} />
+            <Link to="/cardiac" className="btn btn-primary btn-lg" id="cta-cardiac">
+              <HeartPulse size={18} />
               Cardiac Analysis
             </Link>
-            <Link to="/skin" className="btn btn-skin btn-lg" id="cta-skin">
-              <ScanEye size={20} />
+            <Link to="/skin" className="btn btn-secondary btn-lg" id="cta-skin">
+              <ScanEye size={18} />
               Skin Analysis
             </Link>
-            <Link to="/blood" className="btn btn-blood btn-lg" id="cta-blood">
-              <FileText size={20} />
-              Blood Report Analysis
+            <Link to="/blood" className="btn btn-secondary btn-lg" id="cta-blood">
+              <FileText size={18} />
+              Blood Report
             </Link>
           </motion.div>
 
@@ -82,37 +79,40 @@ export default function HomePage() {
             transition={{ duration: 0.5, delay: 0.4 }}
           >
             <div className="hero-stat">
-              <div className="hero-stat-value text-gradient">31</div>
+              <div className="hero-stat-value">31</div>
               <div className="hero-stat-label">Cardiac Conditions</div>
             </div>
             <div className="hero-stat">
-              <div className="hero-stat-value text-gradient">29</div>
+              <div className="hero-stat-value">29</div>
               <div className="hero-stat-label">Skin Conditions</div>
             </div>
             <div className="hero-stat">
-              <div className="hero-stat-value text-gradient">25+</div>
+              <div className="hero-stat-value">25+</div>
               <div className="hero-stat-label">Blood Lab Tests</div>
             </div>
             <div className="hero-stat">
-              <div className="hero-stat-value text-gradient">&lt;3s</div>
+              <div className="hero-stat-value">&lt;3s</div>
               <div className="hero-stat-label">Processing Time</div>
             </div>
           </motion.div>
         </div>
       </section>
 
+      {/* ── ECG Divider ── */}
+      <div className="ecg-divider" />
+
       {/* ── Module Cards ── */}
       <section className="modules-section" id="modules-section">
         <div className="container">
           <motion.div
-            style={{ textAlign: 'center', marginBottom: '48px' }}
+            style={{ textAlign: 'center', marginBottom: '56px' }}
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
             <h2 className="text-h1">Choose Your Diagnostic Module</h2>
-            <p className="text-body" style={{ marginTop: '12px', fontSize: '1.125rem' }}>
+            <p className="text-body" style={{ marginTop: '12px', fontSize: 'var(--text-lg)' }}>
               Select the appropriate module based on your health modality
             </p>
           </motion.div>
@@ -128,11 +128,9 @@ export default function HomePage() {
               <Link to="/cardiac" style={{ textDecoration: 'none' }}>
                 <div className="module-card module-card-cardiac" id="module-cardiac">
                   <div className="module-icon module-icon-cardiac">
-                    <HeartPulse size={28} />
+                    <HeartPulse size={24} />
                   </div>
-                  <h3>
-                    <span className="text-gradient-cardiac">Cardiac Disease</span> Prediction
-                  </h3>
+                  <h3>Cardiac Disease Prediction</h3>
                   <p>
                     Upload a photo or scan of an ECG strip. Our AI digitizes the
                     waveform, extracts P-QRS-T features, and classifies cardiac
@@ -147,13 +145,13 @@ export default function HomePage() {
                       'Signal-based Grad-CAM visualization',
                     ].map((feat) => (
                       <li key={feat}>
-                        <Check size={16} className="cardiac-check" />
+                        <Check size={14} className="cardiac-check" />
                         {feat}
                       </li>
                     ))}
                   </ul>
-                  <span className="btn btn-cardiac">
-                    Start Cardiac Analysis <ChevronRight size={16} />
+                  <span className="btn btn-primary">
+                    Start Analysis <ChevronRight size={14} />
                   </span>
                 </div>
               </Link>
@@ -169,11 +167,9 @@ export default function HomePage() {
               <Link to="/skin" style={{ textDecoration: 'none' }}>
                 <div className="module-card module-card-skin" id="module-skin">
                   <div className="module-icon module-icon-skin">
-                    <ScanEye size={28} />
+                    <ScanEye size={24} />
                   </div>
-                  <h3>
-                    <span className="text-gradient-skin">Skin Disease</span> Prediction
-                  </h3>
+                  <h3>Skin Disease Prediction</h3>
                   <p>
                     Upload a photo of a skin lesion or affected area. Our AI
                     preprocesses the image, segments the lesion, and classifies
@@ -188,13 +184,13 @@ export default function HomePage() {
                       'Image-based Grad-CAM heatmap overlay',
                     ].map((feat) => (
                       <li key={feat}>
-                        <Check size={16} className="skin-check" />
+                        <Check size={14} className="skin-check" />
                         {feat}
                       </li>
                     ))}
                   </ul>
-                  <span className="btn btn-skin">
-                    Start Skin Analysis <ChevronRight size={16} />
+                  <span className="btn btn-primary">
+                    Start Analysis <ChevronRight size={14} />
                   </span>
                 </div>
               </Link>
@@ -210,11 +206,9 @@ export default function HomePage() {
               <Link to="/blood" style={{ textDecoration: 'none' }}>
                 <div className="module-card module-card-blood" id="module-blood">
                   <div className="module-icon module-icon-blood">
-                    <FileText size={28} />
+                    <FileText size={24} />
                   </div>
-                  <h3>
-                    <span className="text-gradient-blood">Blood Test</span> Analysis
-                  </h3>
+                  <h3>Blood Test Analysis</h3>
                   <p>
                     Upload a photo or PDF of routine blood tests (CBC, Lipids, LFT, KFT, Thyroid, Vitamins).
                     Our OCR engine extracts parameters, benchmarks reference ranges, and detects disease patterns.
@@ -228,13 +222,13 @@ export default function HomePage() {
                       'Holistic health score & doctor consultation alert',
                     ].map((feat) => (
                       <li key={feat}>
-                        <Check size={16} className="blood-check" />
+                        <Check size={14} className="blood-check" />
                         {feat}
                       </li>
                     ))}
                   </ul>
-                  <span className="btn btn-blood">
-                    Start Blood Analysis <ChevronRight size={16} />
+                  <span className="btn btn-primary">
+                    Start Analysis <ChevronRight size={14} />
                   </span>
                 </div>
               </Link>
@@ -243,8 +237,11 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── ECG Divider ── */}
+      <div className="ecg-divider" />
+
       {/* ── How It Works ── */}
-      <section style={{ padding: '80px 24px 120px' }} id="how-it-works">
+      <section style={{ padding: '100px 24px 120px' }} id="how-it-works">
         <div className="container">
           <motion.div
             style={{ textAlign: 'center', marginBottom: '64px' }}
@@ -253,74 +250,81 @@ export default function HomePage() {
             viewport={{ once: true }}
           >
             <h2 className="text-h1">How It Works</h2>
-            <p className="text-body" style={{ marginTop: '12px', fontSize: '1.125rem' }}>
+            <p className="text-body" style={{ marginTop: '12px', fontSize: 'var(--text-lg)' }}>
               From image upload to diagnostic report in seconds
             </p>
           </motion.div>
 
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
-            gap: '24px',
-            maxWidth: '1100px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+            gap: '20px',
+            maxWidth: '1000px',
             margin: '0 auto',
           }}>
             {[
-              { icon: <FileCheck size={24} />, title: 'Upload Image', desc: 'Upload an ECG strip photo or skin lesion image through our drag-and-drop interface.' },
-              { icon: <Zap size={24} />, title: 'AI Processing', desc: 'Our pipeline preprocesses the image, extracts features, and removes noise automatically.' },
-              { icon: <Brain size={24} />, title: 'Model Inference', desc: 'Trained deep learning models analyze the data and classify the condition with confidence scores.' },
-              { icon: <BarChart3 size={24} />, title: 'Get Results', desc: 'Receive a detailed report with prediction, confidence scores, Grad-CAM heatmap, and metrics.' },
+              { icon: <FileCheck size={20} />, title: 'Upload Image', desc: 'Upload an ECG strip photo or skin lesion image through our drag-and-drop interface.' },
+              { icon: <Zap size={20} />, title: 'AI Processing', desc: 'Our pipeline preprocesses the image, extracts features, and removes noise automatically.' },
+              { icon: <Brain size={20} />, title: 'Model Inference', desc: 'Trained deep learning models analyze the data and classify the condition with confidence scores.' },
+              { icon: <BarChart3 size={20} />, title: 'Get Results', desc: 'Receive a detailed report with prediction, confidence scores, Grad-CAM heatmap, and metrics.' },
             ].map((step, i) => (
               <motion.div
                 key={step.title}
                 className="glass-card"
-                style={{ textAlign: 'center', position: 'relative' }}
-                initial={{ opacity: 0, y: 30 }}
+                style={{ textAlign: 'center', position: 'relative', paddingTop: '36px' }}
+                initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
               >
+                {/* Step number — simple, no colored box */}
                 <div style={{
                   position: 'absolute',
-                  top: '-14px',
+                  top: '-12px',
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  width: '28px',
-                  height: '28px',
+                  width: '24px',
+                  height: '24px',
                   borderRadius: '50%',
-                  background: 'var(--gradient-primary)',
+                  background: 'var(--accent)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '0.75rem',
+                  fontSize: '0.6875rem',
                   fontWeight: 700,
-                  color: '#0a0e1a',
+                  color: 'var(--bg-primary)',
                 }}>
                   {i + 1}
                 </div>
+                {/* Icon — no colored box wrapper, just the icon */}
                 <div style={{
-                  width: '56px',
-                  height: '56px',
-                  margin: '12px auto 20px',
-                  borderRadius: 'var(--radius-lg)',
-                  background: 'rgba(6, 214, 160, 0.08)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--accent-cyan)',
+                  color: 'var(--accent)',
+                  marginBottom: '14px',
+                  opacity: 0.7,
                 }}>
                   {step.icon}
                 </div>
-                <h3 className="text-h3" style={{ marginBottom: '8px' }}>{step.title}</h3>
-                <p className="text-body" style={{ fontSize: '0.9375rem' }}>{step.desc}</p>
+                <h3 style={{ 
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'var(--text-md)', 
+                  fontWeight: 600, 
+                  marginBottom: '8px',
+                  color: 'var(--text-primary)',
+                }}>
+                  {step.title}
+                </h3>
+                <p className="text-body" style={{ fontSize: 'var(--text-sm)' }}>{step.desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* ── ECG Divider ── */}
+      <div className="ecg-divider" />
+
       {/* ── Features ── */}
-      <section style={{ padding: '0 24px 120px' }}>
+      <section style={{ padding: '80px 24px 120px' }}>
         <div className="container">
           <motion.div
             style={{ textAlign: 'center', marginBottom: '48px' }}
@@ -328,52 +332,52 @@ export default function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-h1">
-              <Sparkles size={32} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '12px', color: 'var(--accent-amber)' }} />
-              Key Features
-            </h2>
+            <h2 className="text-h1">Key Features</h2>
           </motion.div>
 
           <div style={{ 
             display: 'grid', 
             gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-            gap: '20px',
-            maxWidth: '1100px',
+            gap: '16px',
+            maxWidth: '1000px',
             margin: '0 auto',
           }}>
             {[
-              { icon: <Shield size={22} />, title: 'Grad-CAM Explainability', desc: 'See exactly which regions of the image influenced the AI prediction with heatmap overlays.', color: 'var(--accent-cyan)' },
-              { icon: <Activity size={22} />, title: 'Signal Digitization', desc: 'ECG images are digitized into numerical time-series for precise feature extraction and analysis.', color: 'var(--accent-rose)' },
-              { icon: <Microscope size={22} />, title: 'Lesion Segmentation', desc: 'Automatic skin lesion segmentation isolates regions of interest for more accurate classification.', color: 'var(--accent-purple)' },
-              { icon: <BarChart3 size={22} />, title: 'Confidence Scoring', desc: 'Every prediction comes with per-class confidence percentages so you understand the model\'s certainty.', color: 'var(--accent-blue)' },
-              { icon: <Brain size={22} />, title: 'Deep Learning Models', desc: 'Powered by 1D-CNN/LSTM for ECG and EfficientNet/ResNet with transfer learning for skin analysis.', color: 'var(--accent-amber)' },
-              { icon: <Zap size={22} />, title: 'Real-time Processing', desc: 'Get predictions in under 3 seconds with our optimized inference pipeline.', color: 'var(--accent-cyan)' },
+              { icon: <Shield size={18} />, title: 'Grad-CAM Explainability', desc: 'See exactly which regions of the image influenced the AI prediction with heatmap overlays.' },
+              { icon: <Activity size={18} />, title: 'Signal Digitization', desc: 'ECG images are digitized into numerical time-series for precise feature extraction and analysis.' },
+              { icon: <Microscope size={18} />, title: 'Lesion Segmentation', desc: 'Automatic skin lesion segmentation isolates regions of interest for more accurate classification.' },
+              { icon: <BarChart3 size={18} />, title: 'Confidence Scoring', desc: 'Every prediction comes with per-class confidence percentages so you understand the model\'s certainty.' },
+              { icon: <Brain size={18} />, title: 'Deep Learning Models', desc: 'Powered by 1D-CNN/LSTM for ECG and EfficientNet/ResNet with transfer learning for skin analysis.' },
+              { icon: <Zap size={18} />, title: 'Real-time Processing', desc: 'Get predictions in under 3 seconds with our optimized inference pipeline.' },
             ].map((feat, i) => (
               <motion.div
                 key={feat.title}
                 className="glass-card"
-                style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}
-                initial={{ opacity: 0, y: 20 }}
+                style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}
+                initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.08 }}
+                transition={{ delay: i * 0.06 }}
               >
                 <div style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: 'var(--radius-md)',
-                  background: `${feat.color}15`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: feat.color,
+                  color: 'var(--accent)',
                   flexShrink: 0,
+                  marginTop: '2px',
+                  opacity: 0.8,
                 }}>
                   {feat.icon}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '6px' }}>{feat.title}</h3>
-                  <p className="text-body" style={{ fontSize: '0.875rem' }}>{feat.desc}</p>
+                  <h3 style={{ 
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 'var(--text-base)', 
+                    fontWeight: 600, 
+                    marginBottom: '4px',
+                    color: 'var(--text-primary)',
+                  }}>
+                    {feat.title}
+                  </h3>
+                  <p className="text-body" style={{ fontSize: 'var(--text-sm)' }}>{feat.desc}</p>
                 </div>
               </motion.div>
             ))}
