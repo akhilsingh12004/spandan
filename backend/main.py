@@ -167,6 +167,8 @@ async def predict_cardiac_endpoint(file: UploadFile = File(...)):
                 "disclaimer": MEDICAL_DISCLAIMER,
             }
         )
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Cardiac processing error: {str(e)}")
 
