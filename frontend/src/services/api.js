@@ -359,48 +359,58 @@ export function simulateBloodPrediction(hint = '') {
 /**
  * High-accuracy client-side fallback clinical synthesizer
  */
-export function generateLocalExplanation(reportData, module = 'blood', readingLevel = 'standard') {
+export function generateLocalExplanation(reportData, module = 'blood', readingLevel = 'simple') {
+  const isSimple = readingLevel === 'simple'
+
   if (module === 'cardiac') {
     const top = reportData.topCondition || 'Normal Sinus Rhythm'
     const conf = Math.round((reportData.topConfidence || 0.8) * 100)
     const hr = reportData.metrics?.heartRate || 72
-    const isNormal = top.includes('Normal')
+    const isNormal = top.includes('Normal') || top.includes('Sinus Rhythm')
 
     return {
       module: 'cardiac',
-      headline: isNormal ? `Preserved Normal Sinus Rhythm (${conf}% Confidence)` : `Detected Rhythm Pattern: ${top} (${conf}% Confidence)`,
+      headline: isSimple
+        ? (isNormal ? `Steady Heart Rhythm (${conf}% Match)` : `Heart Rhythm Finding: ${top} (${conf}% Match)`)
+        : (isNormal ? `Preserved Normal Sinus Rhythm (${conf}% Confidence)` : `Detected Rhythm Pattern: ${top} (${conf}% Confidence)`),
       healthScore: isNormal ? 95 : 68,
       acuityLevel: reportData.requiresSpecialistReview ? 'High' : isNormal ? 'Low' : 'Moderate',
-      executiveSummary: isNormal 
-        ? `Your digitized ECG tracing displays regular rhythm pacing with an average ventricular rate of ${hr} bpm. Conduction morphology across P-waves and QRS complexes resides within expected electrophysiological standards.`
-        : `Your digitized ECG analysis identifies waveforms characteristic of ${top} with ${conf}% algorithmic confidence. Average recorded heart rate is ${hr} bpm. 1D Grad-CAM highlights focal attributions in waveform dynamics. Clinical correlation with a certified cardiologist is recommended.`,
+      executiveSummary: isSimple
+        ? (isNormal 
+            ? `Good news! Your ECG shows a steady, healthy heartbeat. Your resting heart rate is ${hr} beats per minute, which is well within the healthy adult range (60 to 100 bpm).`
+            : `Your ECG test showed features matching "${top}" with an average heart rate of ${hr} beats per minute. This is a common pattern that can be influenced by caffeine, exercise, stress, or mild dehydration, but it is a good idea to discuss it with your doctor.`)
+        : (isNormal 
+            ? `Your digitized ECG tracing displays regular rhythm pacing with an average ventricular rate of ${hr} bpm. Conduction morphology across P-waves and QRS complexes resides within expected electrophysiological standards.`
+            : `Your digitized ECG analysis identifies waveforms characteristic of ${top} with ${conf}% algorithmic confidence. Average recorded heart rate is ${hr} bpm. 1D Grad-CAM highlights focal attributions in waveform dynamics. Clinical correlation with a certified cardiologist is recommended.`),
       organSystems: [
         {
           id: 'rhythm',
-          name: 'Cardiac Rhythm & AV Conduction',
+          name: isSimple ? 'Heart Beat & Rhythm Pacing' : 'Cardiac Rhythm & AV Conduction',
           icon: 'HeartPulse',
           status: isNormal ? 'OPTIMAL' : 'ATTENTION_NEEDED',
-          summary: `Primary rhythm: ${top}. Ventricular rate: ${hr} bpm.`,
+          summary: isSimple ? `Heart rate: ${hr} beats per minute. Pattern: ${top}.` : `Primary rhythm: ${top}. Ventricular rate: ${hr} bpm.`,
           relevantMarkers: [`Rate: ${hr} bpm`, `PR: ${reportData.metrics?.prInterval || 'Normal'}`],
-          physiologicalMechanism: 'Electrical depolarization originates at the sinus node and orchestrates rhythmic myocardial contraction.'
+          physiologicalMechanism: isSimple 
+            ? 'Your heart uses natural electrical pulses to pump blood to your lungs and body.' 
+            : 'Electrical depolarization originates at the sinus node and orchestrates rhythmic myocardial contraction.'
         }
       ],
       lifestylePrescription: {
-        nutrition: ['Ensure adequate magnesium and potassium through avocados, bananas, and seeds to maintain cellular resting potential.', 'Moderate high-caffeine intake and avoid stimulant energy supplements.'],
-        exercise: ['Engage in 150 minutes of structured aerobic exercise weekly with thorough warm-up and cool-down.'],
-        supplements: ['Discuss Omega-3 EPA/DHA fatty acids with your physician.'],
-        habits: ['Practice consistent sleep hygiene and slow diaphragmatic breathing to minimize sympathetic surges.']
+        nutrition: ['Drink plenty of water and eat fruits like bananas or oranges to keep heart electrolytes balanced.', 'Moderate daily coffee, tea, and energy drink consumption.'],
+        exercise: ['Aim for 20-30 minutes of gentle walking or light exercise most days.'],
+        supplements: ['Ask your doctor about Omega-3 fish oil or magnesium if appropriate for you.'],
+        habits: ['Get 7-8 hours of sleep and take 5 minutes of calm breathing when feeling stressed.']
       },
       doctorChecklist: {
         questions: [
-          `Does this rhythm finding of '${top}' correlate with any clinical symptoms (such as flutter or fatigue)?`,
-          'Would a formal 12-lead ECG or 24-hour Holter monitor be beneficial for corroboration?',
-          'Should we check serum electrolytes (Potassium, Calcium, Magnesium)?'
+          `Does this finding of '${top}' match my symptoms (like fluttering, shortness of breath, or fatigue)?`,
+          'Should we perform a formal 12-lead ECG in the clinic to double-check?',
+          'Are my blood electrolytes (Potassium and Magnesium) balanced?'
         ],
-        recommendedSpecialists: ['Cardiologist', 'Primary Care Physician'],
+        recommendedSpecialists: ['Cardiologist', 'Primary Care Doctor'],
         followUpTimeline: reportData.requiresSpecialistReview ? 'Within 24-48 hours' : 'Within 2 to 4 weeks'
       },
-      redFlags: ['Crushing chest tightness or pressure radiating to left arm/jaw', 'Sudden fainting or severe dizziness with rapid pounding heart', 'Acute breathlessness at rest'],
+      redFlags: ['Crushing chest pain or pressure', 'Sudden fainting or severe dizziness with rapid pounding heart', 'Shortness of breath while resting'],
       readingLevel,
       generatedAt: new Date().toLocaleTimeString()
     }
@@ -409,41 +419,49 @@ export function generateLocalExplanation(reportData, module = 'blood', readingLe
   if (module === 'skin') {
     const top = reportData.topCondition || 'Melanocytic Nevus (Mole)'
     const conf = Math.round((reportData.topConfidence || 0.75) * 100)
-    const isBenign = top.includes('Nevus') || top.includes('Normal') || top.includes('Benign')
+    const isBenign = top.includes('Nevus') || top.includes('Normal') || top.includes('Benign') || top.includes('Mole')
 
     return {
       module: 'skin',
-      headline: `Dermatological Assessment: ${top} (${conf}% Confidence)`,
+      headline: isSimple 
+        ? `Skin Check Result: ${top} (${conf}% Match)` 
+        : `Dermatological Assessment: ${top} (${conf}% Confidence)`,
       healthScore: isBenign ? 90 : 62,
       acuityLevel: reportData.requiresSpecialistReview ? 'High' : isBenign ? 'Low' : 'Moderate',
-      executiveSummary: `Convolutional transfer-learning classifies the skin lesion as ${top} (${conf}% confidence). Morphological ABCD boundary metrics and 2D Grad-CAM focus support this attribution. ${reportData.requiresSpecialistReview ? 'Clinical examination and dermoscopic biopsy evaluation by a licensed dermatologist is strongly advised.' : 'Continue regular skin self-surveillance.'}`,
+      executiveSummary: isSimple
+        ? (isBenign
+            ? `Your skin photo matches the appearance of a common, harmless skin mark (${top}). It shows standard borders and color. Just keep an eye on it for any sudden changes in size or shape.`
+            : `The AI evaluated your skin spot and found features matching "${top}". Because skin spots should always be examined in person, we recommend having a certified dermatologist check it with a dermatoscope.`)
+        : `Convolutional transfer-learning classifies the skin lesion as ${top} (${conf}% confidence). Morphological ABCD boundary metrics and 2D Grad-CAM focus support this attribution. ${reportData.requiresSpecialistReview ? 'Clinical examination and dermoscopic biopsy evaluation by a licensed dermatologist is strongly advised.' : 'Continue regular skin self-surveillance.'}`,
       organSystems: [
         {
           id: 'integumentary',
-          name: 'Cutaneous & Epidermal Architecture',
+          name: isSimple ? 'Skin Layer & Surface Marks' : 'Cutaneous & Epidermal Architecture',
           icon: 'ScanEye',
           status: isBenign ? 'OPTIMAL' : 'ATTENTION_NEEDED',
-          summary: `Identified lesion: ${top}. Asymmetry Index: ${reportData.segmentationMetrics?.asymmetryIndex?.toFixed(2) || '0.18'}.`,
-          relevantMarkers: [`Asymmetry: ${reportData.segmentationMetrics?.asymmetryIndex || 0.18}`, `Border Irregularity: ${reportData.segmentationMetrics?.borderIrregularity || 0.22}`],
-          physiologicalMechanism: 'Melanocytes provide cellular photoprotection by distributing melanin to basal keratinocytes.'
+          summary: isSimple ? `Evaluated mark: ${top}.` : `Identified lesion: ${top}. Asymmetry Index: ${reportData.segmentationMetrics?.asymmetryIndex?.toFixed(2) || '0.18'}.`,
+          relevantMarkers: [`Asymmetry: ${reportData.segmentationMetrics?.asymmetryIndex || 0.18}`, `Border: ${reportData.segmentationMetrics?.borderIrregularity || 0.22}`],
+          physiologicalMechanism: isSimple 
+            ? 'Skin cells produce melanin pigment to protect deeper skin layers from sunlight.' 
+            : 'Melanocytes provide cellular photoprotection by distributing melanin to basal keratinocytes.'
         }
       ],
       lifestylePrescription: {
-        nutrition: ['Incorporate dietary antioxidants, lycopene, and carotenoids to bolster cutaneous photoprotection.'],
-        exercise: ['Exercise outdoors during low UV hours (before 10 AM or after 4 PM).'],
-        supplements: ['Discuss oral nicotinamide (Vitamin B3) with your dermatologist.'],
-        habits: ['Apply broad-spectrum SPF 30+ sunscreen daily, reapplying every 2 hours outdoors.', 'Perform monthly skin self-checks following the ABCDE criteria.']
+        nutrition: ['Eat foods rich in antioxidants like berries, tomatoes, and leafy greens to support healthy skin.'],
+        exercise: ['When exercising outdoors, wear a hat and avoid direct midday sun (11 AM to 3 PM).'],
+        supplements: ['Discuss Vitamin D or skin-supporting nutrients with your doctor.'],
+        habits: ['Apply SPF 30+ sunscreen on sunny days.', 'Check your skin once a month for new or changing spots.']
       },
       doctorChecklist: {
         questions: [
-          `Does this lesion warrant formal dermoscopy or an excision biopsy?`,
-          'What is my recommended schedule for total body skin exams based on my skin type?',
-          'What specific evolutionary signs (color or shape changes) should I monitor?'
+          `Does this spot look typical, or should we examine it with a medical dermatoscope?`,
+          'How often should I have routine skin checkups based on my skin type?',
+          'What specific changes (size, itching, bleeding) should I watch out for?'
         ],
         recommendedSpecialists: ['Dermatologist'],
         followUpTimeline: reportData.requiresSpecialistReview ? 'Within 1 to 2 weeks' : 'Routine annual checkup'
       },
-      redFlags: ['Spontaneous bleeding or oozing without injury', 'Rapid asymmetric enlargement or scalloped borders', 'Appearance of multiple contrasting pigment shades'],
+      redFlags: ['Spontaneous bleeding or oozing without injury', 'Spot growing rapidly or changing color', 'Painful or severely itchy growth'],
       readingLevel,
       generatedAt: new Date().toLocaleTimeString()
     }
@@ -456,14 +474,20 @@ export function generateLocalExplanation(reportData, module = 'blood', readingLe
 
   return {
     module: 'blood',
-    headline: abnormalCount > 0 
-      ? `Actionable Metabolic & Lifestyle Findings Identified (${abnormalCount} Tests Flagged)`
-      : 'Optimal Physiological Profile: All Lab Parameters Within Healthy Limits',
+    headline: isSimple
+      ? (abnormalCount > 0 ? `Health Score: ${healthScore}/100 (${abnormalCount} Tests to Review)` : `Health Score: ${healthScore}/100 (All Tests Healthy!)`)
+      : (abnormalCount > 0 
+          ? `Actionable Metabolic & Lifestyle Findings Identified (${abnormalCount} Tests Flagged)`
+          : 'Optimal Physiological Profile: All Lab Parameters Within Healthy Limits'),
     healthScore,
     acuityLevel: abnormalCount >= 5 ? 'High' : abnormalCount >= 2 ? 'Moderate' : 'Low',
-    executiveSummary: abnormalCount > 0
-      ? `Your comprehensive lab report identifies ${abnormalCount} parameters deviating from standard adult reference intervals, resulting in a metabolic health score of ${healthScore}/100. Key patterns include ${conditions.slice(0, 2).map(c => c.condition).join(' and ') || 'metabolic variances'}. These findings represent interconnected bodily processes—principally cellular oxygenation, lipid processing, and glycemic balance—which are highly responsive to targeted nutrition, lifestyle modification, and clinical follow-up.`
-      : `All analyzed laboratory markers fall within healthy adult physiological reference ranges, yielding a strong metabolic score of ${healthScore}/100. Red blood cell reserves, metabolic clearance, and cardiovascular lipids are well balanced.`,
+    executiveSummary: isSimple
+      ? (abnormalCount > 0
+          ? `We reviewed your blood report and found an overall Health Score of ${healthScore} out of 100. Out of all tests analyzed, ${abnormalCount} ${abnormalCount === 1 ? 'test is' : 'tests are'} slightly outside standard adult numbers. These can often be improved with simple tweaks to your meals, water intake, or daily habits. Share this report with your physician to plan next steps.`
+          : `Congratulations! All laboratory numbers in this report fall comfortably inside normal, healthy adult ranges, earning a Health Score of ${healthScore}/100. Keep up your healthy lifestyle!`)
+      : (abnormalCount > 0
+          ? `Your comprehensive lab report identifies ${abnormalCount} parameters deviating from standard adult reference intervals, resulting in a metabolic health score of ${healthScore}/100. Key patterns include ${conditions.slice(0, 2).map(c => c.condition).join(' and ') || 'metabolic variances'}. These findings represent interconnected bodily processes—principally cellular oxygenation, lipid processing, and glycemic balance—which are highly responsive to targeted nutrition, lifestyle modification, and clinical follow-up.`
+          : `All analyzed laboratory markers fall within healthy adult physiological reference ranges, yielding a strong metabolic score of ${healthScore}/100. Red blood cell reserves, metabolic clearance, and cardiovascular lipids are well balanced.`),
     organSystems: [
       {
         id: 'hepatic',

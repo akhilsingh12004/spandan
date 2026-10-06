@@ -33,7 +33,7 @@ import { fetchReportExplanation, askReportAI } from '../services/api'
 
 export default function AIReportExplainer({ reportData, module = 'blood' }) {
   const [activeTab, setActiveTab] = useState('summary')
-  const [readingLevel, setReadingLevel] = useState('standard')
+  const [readingLevel, setReadingLevel] = useState('simple')
   const [explanation, setExplanation] = useState(reportData?.aiExplanation || null)
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(!reportData?.aiExplanation)
   const [copied, setCopied] = useState(false)
@@ -193,11 +193,11 @@ Medical Disclaimer: For educational and decision-support purposes only. Consult 
   }
 
   const promptChips = [
-    "Explain this report in very simple terms",
-    "What specific foods should I eat to improve these numbers?",
-    "Are any of my abnormal test results dangerous?",
-    "What exact questions should I ask my doctor?",
-    "How are my liver enzymes and cholesterol connected?"
+    "Explain this report in very simple words",
+    "What everyday foods or drinks should I focus on?",
+    "Are any of my abnormal results dangerous?",
+    "What specific questions should I ask my doctor at my visit?",
+    "Give me 3 easy lifestyle habits to improve my health"
   ]
 
   const getSystemIcon = (id) => {
@@ -229,19 +229,19 @@ Medical Disclaimer: For educational and decision-support purposes only. Consult 
             <div className="reading-level-toggle">
               <button 
                 type="button"
-                className={`reading-pill ${readingLevel === 'standard' ? 'active' : ''}`}
-                onClick={() => setReadingLevel('standard')}
-                title="Comprehensive clinical breakdown"
-              >
-                Comprehensive
-              </button>
-              <button 
-                type="button"
                 className={`reading-pill ${readingLevel === 'simple' ? 'active' : ''}`}
                 onClick={() => setReadingLevel('simple')}
                 title="Simple, everyday plain English"
               >
-                Simple English
+                🟢 Easy English
+              </button>
+              <button 
+                type="button"
+                className={`reading-pill ${readingLevel === 'standard' ? 'active' : ''}`}
+                onClick={() => setReadingLevel('standard')}
+                title="Comprehensive clinical breakdown"
+              >
+                🔬 Clinical Specs
               </button>
             </div>
 

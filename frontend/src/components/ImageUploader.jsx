@@ -157,18 +157,33 @@ export default function ImageUploader({
               
               <h3 className="upload-title">{titleText}</h3>
               
-              <p className="upload-subtitle">
-                Drag & drop or click to browse. {subtitleText}
+              <p className="upload-subtitle" style={{ maxWidth: '480px', margin: '0 auto 16px' }}>
+                {subtitleText} Tap anywhere to select a file from your device, or drag & drop it here.
               </p>
 
-              <div className="upload-formats" style={{ marginBottom: '24px' }}>
+              <div className="upload-formats" style={{ marginBottom: '20px' }}>
                 {formatBadges.map(fmt => (
                   <span key={fmt} className="format-badge">{fmt}</span>
                 ))}
               </div>
 
-              {/* Instant Demo Sample Button */}
-              <div>
+              {/* Instant Demo Sample Box for Beginners */}
+              <div 
+                style={{
+                  marginTop: '10px',
+                  padding: '14px 18px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px dashed var(--border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Don't have your own medical file right now?
+                </span>
                 <button
                   type="button"
                   onClick={loadSampleImage}
@@ -177,6 +192,7 @@ export default function ImageUploader({
                   style={{
                     boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
                     fontSize: '0.8125rem',
+                    fontWeight: 600
                   }}
                 >
                   <Sparkles size={14} />

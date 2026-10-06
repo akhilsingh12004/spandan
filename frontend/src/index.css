@@ -2618,3 +2618,43 @@ input, textarea, select {
   border-top-color: var(--accent);
   animation: spin 1s infinite linear;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Beginner Usability System
+   ═══════════════════════════════════════════════════════════════ */
+
+.mobile-only-help {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-only-help {
+    display: inline-flex !important;
+  }
+}
+
+.beginner-modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.beginner-modal-content {
+  max-width: 780px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .beginner-modal-content {
+    max-height: 94vh;
+  }
+}
+
+/* Indicator pill for evidence markers */
+.indicator-pill {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+

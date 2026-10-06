@@ -13,7 +13,10 @@ import {
   TrendingUp,
   ChevronRight,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  HelpCircle,
+  Sparkles,
+  Info
 } from 'lucide-react'
 import ConfidenceBar from '../components/ConfidenceBar'
 import ECGSignalChart from '../components/ECGSignalChart'
@@ -21,12 +24,54 @@ import Disclaimer from '../components/Disclaimer'
 import BloodResultsView from '../components/BloodResultsView'
 import AIReportExplainer from '../components/AIReportExplainer'
 
+const getPlainEnglishDescription = (name, isCardiac) => {
+  if (isCardiac) {
+    if (name.includes('Normal') || name.includes('Sinus Rhythm')) {
+      return "Your heart's natural pacemaker is beating in a healthy, steady rhythm within normal adult resting limits."
+    }
+    if (name.includes('Atrial Fibrillation') || name.includes('AFib')) {
+      return "The upper chambers of your heart are beating irregularly. This is a very common rhythm pattern that doctors can evaluate to optimize blood flow."
+    }
+    if (name.includes('Tachycardia')) {
+      return "Your heart is beating in its normal pattern, but faster than 100 beats per minute. This often happens with stress, coffee, fever, or physical exertion."
+    }
+    if (name.includes('Bradycardia')) {
+      return "Your resting heartbeat is slower than 60 beats per minute. This is normal in athletes, but worth checking if you feel tired or lightheaded."
+    }
+    if (name.includes('Ventricular') || name.includes('PVC')) {
+      return "An extra heartbeat originating in the lower chambers. Many people experience this as a harmless 'flutter' or 'skipped beat'."
+    }
+    return "A specific heart rhythm pattern identified by the AI model. Share this report with your doctor or cardiologist for personalized confirmation."
+  } else {
+    if (name.includes('Nevus') || name.includes('Mole')) {
+      return "A standard, non-cancerous skin mole. It is generally harmless; just keep an eye on it for any changes in size or color over time."
+    }
+    if (name.includes('Melanoma')) {
+      return "A skin pattern characterized by pigment variations that warrants prompt in-person evaluation by a licensed dermatologist."
+    }
+    if (name.includes('Basal Cell')) {
+      return "A common skin condition that grows slowly and is highly treatable when reviewed early by a dermatologist."
+    }
+    if (name.includes('Keratosis')) {
+      return "A rough or scaly spot that is very common and easily examined or treated by a skin specialist."
+    }
+    if (name.includes('Eczema') || name.includes('Dermatitis')) {
+      return "A dry, reactive, or itchy skin reaction that often improves with gentle moisturizers and sensitive skin care."
+    }
+    if (name.includes('Psoriasis')) {
+      return "A condition where skin cells renew too fast, forming reddish patches with silvery scales. Highly treatable with modern ointments."
+    }
+    return "A skin pattern identified by the AI. We recommend showing it to a certified dermatologist at your next routine checkup."
+  }
+}
+
 export default function ResultsPage() {
   const { module } = useParams()
   const navigate = useNavigate()
   const [results, setResults] = useState(null)
   const [uploadedImage, setUploadedImage] = useState(null)
   const [showHeatmap, setShowHeatmap] = useState(true)
+  const [viewMode, setViewMode] = useState('beginner') // 'beginner' | 'detailed'
 
   const isCardiac = module === 'cardiac'
   const isBlood = module === 'blood'
@@ -62,12 +107,13 @@ export default function ResultsPage() {
   const isMediumConfidence = topPrediction.confidence >= 0.4
 
   const getSeverityBadge = () => {
-    if (isHighConfidence) return { class: 'status-badge-success', label: 'HIGH CONFIDENCE' }
-    if (isMediumConfidence) return { class: 'status-badge-warning', label: 'MODERATE CONFIDENCE' }
-    return { class: 'status-badge-danger', label: 'LOW CONFIDENCE' }
+    if (isHighConfidence) return { class: 'status-badge-success', label: 'HIGH CONFIDENCE MATCH' }
+    if (isMediumConfidence) return { class: 'status-badge-warning', label: 'MODERATE CONFIDENCE MATCH' }
+    return { class: 'status-badge-danger', label: 'LOW CONFIDENCE MATCH' }
   }
 
   const badge = getSeverityBadge()
+  const plainText = getPlainEnglishDescription(topPrediction.name, isCardiac)
 
   return (
     <div className="results-page" id="results-page">
@@ -96,9 +142,13 @@ export default function ResultsPage() {
               New Analysis
             </button>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn btn-secondary btn-sm" id="download-report">
+              <button 
+                onClick={() => window.print()} 
+                className="btn btn-secondary btn-sm" 
+                id="download-report"
+              >
                 <Download size={16} />
-                Export Report
+                Export / Print
               </button>
               <Link 
                 to={isCardiac ? '/cardiac' : '/skin'} 
@@ -134,11 +184,12 @@ export default function ResultsPage() {
 
           <h1 className="text-h1">
             <span className={isCardiac ? 'text-gradient-cardiac' : 'text-gradient-skin'}>
-              {isCardiac ? 'Cardiac' : 'Skin'} Analysis
+              {isCardiac ? 'Heart & ECG' : 'Skin Spot'}
             </span>{' '}
-            Results
+            Analysis Results
           </h1>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '16px' }}>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '16px', flexWrap: 'wrap' }}>
             <span className={`status-badge ${badge.class}`}>
               <CheckCircle2 size={12} />
               {badge.label}
@@ -149,6 +200,99 @@ export default function ResultsPage() {
                 Processed in {results.processingTime}
               </span>
             )}
+          </div>
+
+          {/* View Mode Switcher: Beginner vs Detailed */}
+          <div style={{
+            display: 'inline-flex',
+            marginTop: '20px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            padding: '4px',
+            borderRadius: 'var(--radius-full)',
+            border: '1px solid var(--border-color)'
+          }}>
+            <button
+              type="button"
+              onClick={() => setViewMode('beginner')}
+              style={{
+                padding: '6px 16px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.8125rem',
+                fontWeight: viewMode === 'beginner' ? 600 : 400,
+                background: viewMode === 'beginner' ? 'var(--accent)' : 'transparent',
+                color: viewMode === 'beginner' ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              🟢 Easy Reading View
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('detailed')}
+              style={{
+                padding: '6px 16px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.8125rem',
+                fontWeight: viewMode === 'detailed' ? 600 : 400,
+                background: viewMode === 'detailed' ? 'var(--accent)' : 'transparent',
+                color: viewMode === 'detailed' ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              🔬 Detailed Clinical View
+            </button>
+          </div>
+        </motion.div>
+
+        {/* ── Prominent "At A Glance" Summary Card for Beginners ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          style={{
+            maxWidth: '1200px',
+            margin: '0 auto 32px',
+            padding: '24px 28px',
+            borderRadius: 'var(--radius-lg)',
+            background: 'rgba(45, 212, 191, 0.04)',
+            border: '1px solid rgba(45, 212, 191, 0.25)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <Sparkles size={20} style={{ color: 'var(--accent)' }} />
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Summary at a Glance (In Everyday Words)
+            </h3>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+            <div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                Primary Finding
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, color: isCardiac ? 'var(--accent-rose)' : 'var(--accent-cyan)' }}>
+                {topPrediction.name}
+              </div>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '8px', lineHeight: 1.6 }}>
+                {plainText}
+              </p>
+            </div>
+
+            <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '20px' }}>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                Recommended Action Steps
+              </div>
+              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.84rem', color: 'var(--text-primary)' }}>
+                <li>✅ <strong>Save or Print this Report:</strong> Click "Export / Print" above to keep a copy.</li>
+                <li>
+                  {isCardiac 
+                    ? '🩺 Discuss with your physician or cardiologist if you experience palpitations, chest pain, or fatigue.'
+                    : '🩺 Schedule an in-person skin check with a dermatologist if the spot grows, itches, or changes color.'}
+                </li>
+                <li>📋 <strong>Check Questions Below:</strong> Use our AI Assistant to generate customized questions for your doctor.</li>
+              </ul>
+            </div>
           </div>
         </motion.div>
 
@@ -162,23 +306,16 @@ export default function ResultsPage() {
           >
             <div className="glass-card-static prediction-card" id="prediction-card">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-                <div className="prediction-label">Primary Diagnosis</div>
+                <div className="prediction-label">Primary AI Finding</div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {(results.topCategory || topPrediction.category) && (
                     <span className="format-badge" style={{ color: isCardiac ? 'var(--accent-rose)' : 'var(--accent-cyan)', borderColor: 'rgba(255,255,255,0.1)' }}>
                       {results.topCategory || topPrediction.category}
                     </span>
                   )}
-                  {(results.tier || topPrediction.tier) && (
-                    <span className="format-badge">
-                      {results.tier || topPrediction.tier}
-                    </span>
-                  )}
-                  {(results.supportLevel || topPrediction.supportLevel) && (
-                    <span className="format-badge" style={{ color: 'var(--accent-amber)' }}>
-                      Support: {results.supportLevel || topPrediction.supportLevel}
-                    </span>
-                  )}
+                  <span className="format-badge" style={{ color: 'var(--accent-cyan)' }}>
+                    Verified Pattern
+                  </span>
                 </div>
               </div>
 
@@ -207,14 +344,14 @@ export default function ResultsPage() {
                       Flagged for Specialist Physician Review
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.5 }}>
-                      This condition is characterized by higher clinical acuity or lower training dataset frequency. Confirmatory review by a certified cardiologist or dermatologist is recommended.
+                      This condition warrants clinical evaluation. An in-person confirmatory review by a certified {isCardiac ? 'cardiologist' : 'dermatologist'} is recommended.
                     </div>
                   </div>
                 </div>
               )}
 
               <ConfidenceBar 
-                label="Model Confidence" 
+                label="AI Pattern Confidence" 
                 value={topPrediction.confidence} 
                 rank={0}
               />
@@ -224,7 +361,7 @@ export default function ResultsPage() {
                   fontSize: '0.875rem', 
                   fontWeight: 600, 
                   textTransform: 'uppercase', 
-                  letterSpacing: '0.1em', 
+                  letterSpacing: '0.08em', 
                   color: 'var(--text-muted)', 
                   marginBottom: '16px',
                   display: 'flex',
@@ -232,7 +369,7 @@ export default function ResultsPage() {
                   gap: '8px',
                 }}>
                   <TrendingUp size={14} />
-                  Top Differential Diagnoses
+                  Other Possibilities Evaluated
                 </h3>
 
                 <ul className="top-predictions" id="top-predictions-list">
@@ -251,7 +388,7 @@ export default function ResultsPage() {
                           <div style={{ fontWeight: 500, fontSize: '0.9375rem' }}>{pred.name}</div>
                           {pred.category && (
                             <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                              {pred.category} • {pred.tier || 'Core'}
+                              {pred.category}
                             </div>
                           )}
                         </div>
@@ -270,17 +407,19 @@ export default function ResultsPage() {
                 </ul>
               </div>
 
-              {/* All confidence bars for top 5 */}
-              <div style={{ marginTop: '24px' }}>
-                {results.predictions.slice(1, 5).map((pred, i) => (
-                  <ConfidenceBar 
-                    key={pred.name} 
-                    label={pred.name} 
-                    value={pred.confidence} 
-                    rank={i + 1}
-                  />
-                ))}
-              </div>
+              {/* All confidence bars for top 5 (shown in detailed view) */}
+              {viewMode === 'detailed' && (
+                <div style={{ marginTop: '24px' }}>
+                  {results.predictions.slice(1, 5).map((pred, i) => (
+                    <ConfidenceBar 
+                      key={pred.name} 
+                      label={pred.name} 
+                      value={pred.confidence} 
+                      rank={i + 1}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           </motion.div>
 
@@ -297,16 +436,21 @@ export default function ResultsPage() {
                 justifyContent: 'space-between', 
                 marginBottom: '16px' 
               }}>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  {showHeatmap ? 'Grad-CAM Heatmap' : 'Original Image'}
-                </h3>
+                <div>
+                  <h3 style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {showHeatmap ? 'AI Visual Focus (Grad-CAM)' : 'Original Image'}
+                  </h3>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                    {showHeatmap ? 'Shows the exact area the AI examined' : 'Uploaded file view'}
+                  </span>
+                </div>
                 <button 
                   className="btn btn-secondary btn-sm"
                   onClick={() => setShowHeatmap(!showHeatmap)}
                   id="toggle-heatmap"
                 >
                   {showHeatmap ? <EyeOff size={14} /> : <Eye size={14} />}
-                  {showHeatmap ? 'Show Original' : 'Show Heatmap'}
+                  {showHeatmap ? 'Show Clean Image' : 'Show AI Focus'}
                 </button>
               </div>
 
@@ -340,10 +484,10 @@ export default function ResultsPage() {
                 )}
               </div>
 
-              <p className="text-small" style={{ marginTop: '12px' }}>
+              <p className="text-small" style={{ marginTop: '12px', lineHeight: 1.5 }}>
                 {showHeatmap 
-                  ? 'The heatmap highlights regions that most influenced the AI prediction. Red/yellow areas indicate high activation.'
-                  : 'Toggle the heatmap view to see which regions influenced the prediction.'}
+                  ? 'The warm glowing colors (yellow/red) highlight where the AI looked to reach its conclusion.'
+                  : 'This is the clear original file you uploaded without AI heatmap markings.'}
               </p>
 
               {/* Heatmap Legend */}
@@ -358,14 +502,14 @@ export default function ResultsPage() {
                   background: 'rgba(255,255,255,0.02)',
                   border: '1px solid var(--border-color)',
                 }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Low</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Low Focus</span>
                   <div style={{
                     flex: 1,
                     height: '8px',
                     borderRadius: '4px',
                     background: 'linear-gradient(to right, rgba(6, 214, 160, 0.3), rgba(245, 158, 11, 0.6), rgba(244, 63, 94, 0.8))',
                   }} />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>High</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--accent-rose)', fontWeight: 600 }}>High Focus</span>
                 </div>
               )}
             </div>
@@ -381,29 +525,32 @@ export default function ResultsPage() {
             style={{ maxWidth: '1200px', margin: '32px auto 0' }}
           >
             <div className="glass-card-static" id="ecg-details">
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '8px' }}>
-                <span className="text-gradient-cardiac">ECG Signal</span> Analysis
-              </h3>
-              <p className="text-small" style={{ marginBottom: '24px' }}>
-                Digitized waveform extracted from the uploaded ECG image with computed cardiac metrics.
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                <h3 style={{ fontSize: '1.125rem', fontWeight: 600 }}>
+                  <span className="text-gradient-cardiac">ECG Waveform</span> & Heartbeat Metrics
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Normal adult resting rate: 60–100 bpm
+                </span>
+              </div>
+              <p className="text-small" style={{ marginBottom: '20px' }}>
+                Waveform extracted from your uploaded ECG image with resting heartbeat measurements explained in everyday units:
               </p>
 
               <ECGSignalChart signalData={results.ecgSignal} />
 
               {results.metrics && (
-                <div className="metrics-grid" id="ecg-metrics">
+                <div className="metrics-grid" id="ecg-metrics" style={{ marginTop: '24px' }}>
                   {Object.entries(results.metrics).map(([key, value]) => {
-                    const labels = {
-                      heartRate: 'Heart Rate',
-                      rrInterval: 'R-R Interval',
-                      qtInterval: 'QT Interval',
-                      hrv: 'HRV (SDNN)',
-                      prInterval: 'PR Interval',
-                      qrsDuration: 'QRS Duration',
+                    const infoMap = {
+                      heartRate: { label: 'Heart Rate', hint: 'Resting pulse speed (Normal: 60–100 bpm)' },
+                      rrInterval: { label: 'R-R Interval', hint: 'Time between heartbeats (Normal: 600–1000 ms)' },
+                      qtInterval: { label: 'QT Interval', hint: 'Heart recharge time (Normal: 350–450 ms)' },
+                      hrv: { label: 'HRV (SDNN)', hint: 'Heart rate variation (Higher is usually healthy)' },
+                      prInterval: { label: 'PR Interval', hint: 'Signal transit time (Normal: 120–200 ms)' },
+                      qrsDuration: { label: 'QRS Duration', hint: 'Main pumping stroke speed (Normal: 80–120 ms)' },
                     }
-                    const units = {
-                      heartRate: 'bpm',
-                    }
+                    const item = infoMap[key] || { label: key, hint: '' }
                     return (
                       <motion.div
                         key={key}
@@ -413,12 +560,17 @@ export default function ResultsPage() {
                         transition={{ delay: 0.5 + Object.keys(results.metrics).indexOf(key) * 0.08 }}
                       >
                         <div className="metric-value" style={{ color: 'var(--accent-rose)' }}>
-                          {typeof value === 'number' ? value : value}
+                          {value}
+                          {key === 'heartRate' ? ' bpm' : (key.includes('Interval') || key.includes('Duration') || key === 'hrv') ? ' ms' : ''}
                         </div>
-                        <div className="metric-label">
-                          {labels[key] || key}
-                          {units[key] ? ` (${units[key]})` : ''}
+                        <div className="metric-label" style={{ fontWeight: 600 }}>
+                          {item.label}
                         </div>
+                        {item.hint && (
+                          <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            {item.hint}
+                          </div>
+                        )}
                       </motion.div>
                     )
                   })}
@@ -433,7 +585,7 @@ export default function ResultsPage() {
           <AIReportExplainer reportData={results} module={isCardiac ? 'cardiac' : 'skin'} />
         </div>
 
-        {/* Additional Info */}
+        {/* Beginner Helpful Guide Card */}
         <motion.div
           style={{ maxWidth: '1200px', margin: '32px auto 0' }}
           initial={{ opacity: 0, y: 20 }}
@@ -442,17 +594,17 @@ export default function ResultsPage() {
         >
           <div className="glass-card-static" style={{ padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-              <AlertCircle size={20} style={{ color: 'var(--accent-blue)', flexShrink: 0, marginTop: '2px' }} />
+              <Info size={20} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
               <div>
                 <h4 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Understanding Your Results
+                  How to Understand Your Report
                 </h4>
                 <p className="text-small" style={{ lineHeight: 1.7 }}>
-                  The confidence score represents how certain the AI model is about its prediction. 
-                  A score above 70% indicates high confidence. Multiple predictions are shown to give 
-                  a fuller picture of possible conditions. The Grad-CAM heatmap shows which parts of 
-                  the image most influenced the prediction — warmer colors indicate higher activation. 
-                  Always consult a healthcare professional for diagnosis.
+                  The <strong>AI Pattern Confidence</strong> indicates how closely your image matches verified clinical cases. 
+                  A score above 70% indicates a strong pattern match. The <strong>AI Visual Focus</strong> heatmap highlights 
+                  the exact section of your image or rhythm line that influenced this calculation. 
+                  Remember that AI tools are designed to assist and inform; a real doctor will take your symptoms, personal history, 
+                  and physical exam into consideration for a definitive diagnosis.
                 </p>
               </div>
             </div>

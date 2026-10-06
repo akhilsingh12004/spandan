@@ -120,10 +120,28 @@ export default function CardiacPage() {
               </div>
             </div>
 
-            <h1 className="text-h1">Cardiac Disease Prediction</h1>
-            <p>
-              Upload a photo or scan of an ECG strip for AI-powered cardiac analysis
+            <h1 className="text-h1">Heart & ECG Rhythm Check</h1>
+            <p style={{ maxWidth: '560px', margin: '0 auto' }}>
+              Upload a clear photo or scan of your ECG paper strip to check your heart rate and rhythm in simple, everyday language.
             </p>
+
+            {/* Beginner Photo Tip Bar */}
+            <div style={{
+              margin: '20px auto 0',
+              maxWidth: '560px',
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              fontSize: '0.8125rem',
+              color: 'var(--text-secondary)'
+            }}>
+              <span>💡 <strong>Tip:</strong> Lay the strip flat in bright light. No strip with you? Use the sample button below!</span>
+            </div>
           </motion.div>
 
           {/* Upload Area */}
@@ -201,7 +219,7 @@ export default function CardiacPage() {
             </motion.div>
           )}
 
-          {/* Info Cards */}
+          {/* Beginner Friendly Info Cards */}
           <motion.div
             style={{ 
               display: 'grid', 
@@ -215,29 +233,26 @@ export default function CardiacPage() {
           >
             <div className="glass-card-static" style={{ padding: '20px' }}>
               <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--accent)', marginBottom: '6px' }}>
-                Supported Input
+                📷 What to Upload
               </h4>
               <p className="text-small">
-                Photo or scanned image of a 12-lead ECG strip, single-lead ECG,
-                or rhythm strip from any standard ECG machine.
+                Any photo or scan of an ECG paper strip or report from a doctor, clinic, or smartwatch rhythm printout.
               </p>
             </div>
             <div className="glass-card-static" style={{ padding: '20px' }}>
               <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--accent)', marginBottom: '6px' }}>
-                AI Pipeline
+                ⚡ How It Works
               </h4>
               <p className="text-small">
-                Grid removal → Waveform digitization → R-peak detection →
-                P-QRS-T segmentation → 1D-CNN/LSTM classification.
+                The AI cleans paper grid marks, traces your heartbeat spikes, and checks if beats are steady, fast, slow, or irregular.
               </p>
             </div>
             <div className="glass-card-static" style={{ padding: '20px' }}>
               <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--accent)', marginBottom: '6px' }}>
-                Conditions Detected
+                📋 Plain-Language Results
               </h4>
               <p className="text-small">
-                AFib, Flutter, Bradycardia, Tachycardia, PVC, V-Tach, Heart
-                Blocks, Bundle Branch Blocks, MI, and more.
+                You'll receive a clear summary of your heart rate, a visual rhythm chart, and helpful questions to discuss with your doctor.
               </p>
             </div>
           </motion.div>

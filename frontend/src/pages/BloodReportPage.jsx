@@ -218,12 +218,29 @@ export default function BloodReportPage() {
             </div>
 
             <h1 className="text-h1">
-              <span className="text-gradient-blood">Blood Test Report</span> Analysis
+              <span className="text-gradient-blood">Blood Test Report</span> Analyzer
             </h1>
-            <p>
-              Upload a photo or PDF of your blood test (CBC, Lipids, LFT, KFT, Thyroid, Vitamins)
-              for instant OCR extraction, reference range flagging, and clinical pattern correlation.
+            <p style={{ maxWidth: '580px', margin: '0 auto' }}>
+              Upload a PDF or photo of your lab test report. We translate complex medical numbers into clear gauges, plain explanations, and an overall Health Score.
             </p>
+
+            {/* Beginner Photo Tip Bar */}
+            <div style={{
+              margin: '20px auto 0',
+              maxWidth: '580px',
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              fontSize: '0.8125rem',
+              color: 'var(--text-secondary)'
+            }}>
+              <span>💡 <strong>Tip:</strong> PDFs or clear photos of paper reports work great. No report handy? Try our 1-click presets or sample below!</span>
+            </div>
           </motion.div>
 
           {/* Upload Area */}

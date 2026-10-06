@@ -98,10 +98,28 @@ export default function SkinPage() {
               </div>
             </div>
 
-            <h1 className="text-h1">Skin Disease Prediction</h1>
-            <p>
-              Upload a clear photo of a skin lesion or affected area for AI-powered dermatological analysis
+            <h1 className="text-h1">Skin Spot & Rash Check</h1>
+            <p style={{ maxWidth: '560px', margin: '0 auto' }}>
+              Upload a clear photo of a skin spot, mole, or rash for an instant AI-powered dermatological evaluation in plain language.
             </p>
+
+            {/* Beginner Photo Tip Bar */}
+            <div style={{
+              margin: '20px auto 0',
+              maxWidth: '560px',
+              padding: '10px 16px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              fontSize: '0.8125rem',
+              color: 'var(--text-secondary)'
+            }}>
+              <span>💡 <strong>Tip:</strong> Take a steady, well-lit close-up. No photo ready? Click 'Try with Sample' below!</span>
+            </div>
           </motion.div>
 
           {/* Upload Area */}
@@ -151,30 +169,26 @@ export default function SkinPage() {
           >
             <div className="glass-card-static" style={{ padding: '20px' }}>
               <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--accent)', marginBottom: '6px' }}>
-                Photo Tips
+                📸 Taking a Good Photo
               </h4>
               <p className="text-small">
-                Use good lighting, keep the camera steady, and capture the
-                lesion from directly above with a clean background for best
-                results.
+                Hold phone steady, use daylight or good room lighting, and center the mark directly in the camera view.
               </p>
             </div>
             <div className="glass-card-static" style={{ padding: '20px' }}>
               <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--accent)', marginBottom: '6px' }}>
-                AI Pipeline
+                🔍 How the AI Sees It
               </h4>
               <p className="text-small">
-                Hair removal → Contrast enhancement → Lesion segmentation →
-                EfficientNet/ResNet feature extraction → Classification.
+                Cleans hair and shadows, outlines the spot, and shows a colored focus map highlighting what it evaluated.
               </p>
             </div>
             <div className="glass-card-static" style={{ padding: '20px' }}>
               <h4 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--accent)', marginBottom: '6px' }}>
-                Conditions Detected
+                🩺 What You Get
               </h4>
               <p className="text-small">
-                Melanoma, BCC, SCC, Actinic Keratosis, Eczema, Psoriasis,
-                Acne, Ringworm, Vitiligo, Rosacea, and more.
+                Clear plain-language explanations of likely conditions, whether doctor review is advised, and care tips.
               </p>
             </div>
           </motion.div>

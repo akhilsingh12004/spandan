@@ -17,10 +17,50 @@ import {
   TrendingDown, 
   AlertTriangle,
   Stethoscope,
-  HeartPulse
+  HeartPulse,
+  Sparkles,
+  Info
 } from 'lucide-react'
 import Disclaimer from './Disclaimer'
 import AIReportExplainer from './AIReportExplainer'
+
+const PARAM_SIMPLE_HINTS = {
+  'Hemoglobin': 'Oxygen-carrying protein in red blood cells that provides bodily energy',
+  'RBC Count': 'Red blood cells that deliver oxygen to your brain and body',
+  'WBC Count': 'White blood cells that fight off germs, bacteria, and infections',
+  'Platelet Count': 'Cells that help your blood clot and heal cuts properly',
+  'Hematocrit (HCT)': 'Percentage of your blood volume made up of red blood cells',
+  'MCV': 'Average size of red blood cells (key marker for iron deficiency)',
+  'MCH': 'Average amount of hemoglobin inside each red blood cell',
+  'MCHC': 'Hemoglobin concentration inside your red blood cells',
+  'RDW': 'Variation in the size of your red blood cells',
+  'Total Bilirubin': 'Natural yellow pigment from red cells; key liver health marker',
+  'Direct Bilirubin': 'Bilirubin processed by liver ready for digestion',
+  'Indirect Bilirubin': 'Unprocessed bilirubin traveling to the liver',
+  'ALT (SGPT)': 'Liver enzyme; rises when liver cells are irritated or stressed',
+  'AST (SGOT)': 'Enzyme in liver and muscles; marks general tissue strain',
+  'Alkaline Phosphatase (ALP)': 'Enzyme linked to liver bile ducts and bone health',
+  'Albumin': 'Major blood protein made by liver; prevents fluid leaks into tissues',
+  'Total Protein': 'Combined protein level circulating in your bloodstream',
+  'Fasting Blood Glucose': 'Immediate blood sugar level after an overnight fast',
+  'HbA1c': 'Your average blood sugar over the last 2 to 3 months',
+  'Total Cholesterol': 'Total fats in blood combining protective and harmful types',
+  'LDL Cholesterol': '"Bad" cholesterol; excess can build plaque in blood vessels',
+  'HDL Cholesterol': '"Good" cholesterol; clears excess fat back to the liver',
+  'Triglycerides': 'Fats stored from unused calories (sugar, oil, carbs)',
+  'Creatinine': 'Waste product filtered by kidneys; key kidney health marker',
+  'BUN (Blood Urea Nitrogen)': 'Protein waste product filtered out by kidneys',
+  'eGFR': 'Estimated filtration speed of kidneys (higher is better)',
+  'Uric Acid': 'Waste product from food breakdown; high levels link to gout',
+  'TSH': 'Thyroid hormone controlling body energy and metabolism',
+  'Vitamin D (25-OH)': 'Crucial nutrient for strong bones, immunity, and mood',
+  'Vitamin B12': 'Essential for nerve function, brain clarity, and red cells',
+  'Ferritin': 'Your body\'s reserve storage vault of iron',
+  'C-Reactive Protein (CRP)': 'General marker of inflammation in the body',
+  'Sodium': 'Electrolyte balancing body fluids and nerve signals',
+  'Potassium': 'Electrolyte vital for healthy heartbeats and muscles',
+  'Calcium': 'Mineral needed for strong bones, heart contractions, and nerves'
+}
 
 export default function BloodResultsView({ results, uploadedImage, navigate }) {
   const [activeFilter, setActiveFilter] = useState('all')
@@ -201,18 +241,18 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
         <div className="blood-kpi-grid">
           {/* Health Score */}
           <div className="blood-kpi-card blood-kpi-score">
-            <div className="blood-kpi-label">Metabolic Health Score</div>
+            <div className="blood-kpi-label">Overall Health Score</div>
             <div className="blood-kpi-value text-gradient-blood">
               {healthScore} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/ 100</span>
             </div>
             <div style={{ fontSize: '0.75rem', color: healthScore >= 80 ? 'var(--accent-cyan)' : 'var(--accent-amber)' }}>
-              {healthScore >= 85 ? 'Optimal Physiological Ranges' : healthScore >= 70 ? 'Mild Multi-Parameter Variance' : 'Actionable Clinical Markers'}
+              {healthScore >= 85 ? 'Healthy Standard Ranges' : healthScore >= 70 ? 'Mild Multi-Parameter Variance' : 'Actionable Clinical Markers'}
             </div>
           </div>
 
           {/* Flagged Abnormalities */}
           <div className="blood-kpi-card blood-kpi-abnormal">
-            <div className="blood-kpi-label">Flagged Abnormalities</div>
+            <div className="blood-kpi-label">Tests Outside Normal</div>
             <div className="blood-kpi-value" style={{ color: 'var(--accent-amber)' }}>
               {abnormalCount}
             </div>
@@ -234,13 +274,37 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
 
           {/* High Acuity Flags */}
           <div className="blood-kpi-card blood-kpi-critical">
-            <div className="blood-kpi-label">Critical Alerts</div>
+            <div className="blood-kpi-label">Needs Attention</div>
             <div className="blood-kpi-value" style={{ color: criticalCount > 0 ? 'var(--accent-rose)' : 'var(--text-muted)' }}>
               {criticalCount}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              {criticalCount > 0 ? 'Urgent physician evaluation' : 'No critical emergencies flagged'}
+              {criticalCount > 0 ? 'Priority doctor review' : 'No critical emergencies flagged'}
             </div>
+          </div>
+        </div>
+
+        {/* Beginner Plain-English Summary Box */}
+        <div style={{
+          padding: '20px 24px',
+          borderRadius: 'var(--radius-lg)',
+          background: 'rgba(45, 212, 191, 0.04)',
+          border: '1px solid rgba(45, 212, 191, 0.25)',
+          marginBottom: '28px',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '16px'
+        }}>
+          <Sparkles size={24} style={{ color: 'var(--accent)', flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+              What Your Report Means (In Everyday Words)
+            </h4>
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              {abnormalCount === 0 
+                ? "Great news! All tested lab markers fall within typical adult ranges. Keep up your balanced nutrition, good sleep, and healthy habits."
+                : `We identified ${abnormalCount} test ${abnormalCount === 1 ? 'number' : 'numbers'} outside standard adult guidelines. These variances often respond well to simple dietary, hydration, or lifestyle adjustments. Review our AI summary below and bring this report to your doctor.`}
+            </p>
           </div>
         </div>
 
@@ -436,15 +500,22 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
                         <div>
-                          <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)', marginRight: '8px' }}>
-                            {param.canonicalName}
-                          </span>
-                          {param.panel && (
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                              • {param.panel}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {param.canonicalName}
                             </span>
+                            {param.panel && (
+                              <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                                • {param.panel}
+                              </span>
+                            )}
+                          </div>
+                          {PARAM_SIMPLE_HINTS[param.canonicalName] && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--accent)', marginTop: '2px', fontWeight: 500 }}>
+                              💡 {PARAM_SIMPLE_HINTS[param.canonicalName]}
+                            </div>
                           )}
                         </div>
                         {getStatusBadge(param.status)}
