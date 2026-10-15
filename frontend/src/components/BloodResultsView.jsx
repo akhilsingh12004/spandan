@@ -19,10 +19,18 @@ import {
   Stethoscope,
   HeartPulse,
   Sparkles,
-  Info
+  Info,
+  ShieldAlert,
+  ShieldCheck,
+  FileDown,
+  User,
+  HelpCircle,
+  BookOpen,
+  ClipboardList
 } from 'lucide-react'
 import Disclaimer from './Disclaimer'
 import AIReportExplainer from './AIReportExplainer'
+import { exportBloodReportPDF } from '../services/pdfExport'
 
 const PARAM_SIMPLE_HINTS = {
   'Hemoglobin': 'Oxygen-carrying protein in red blood cells that provides bodily energy',
@@ -33,7 +41,7 @@ const PARAM_SIMPLE_HINTS = {
   'MCV': 'Average size of red blood cells (key marker for iron deficiency)',
   'MCH': 'Average amount of hemoglobin inside each red blood cell',
   'MCHC': 'Hemoglobin concentration inside your red blood cells',
-  'RDW': 'Variation in the size of your red blood cells',
+  'RDW': 'Variation in the size of your red blood cells (distinguishes types of anemia)',
   'Total Bilirubin': 'Natural yellow pigment from red cells; key liver health marker',
   'Direct Bilirubin': 'Bilirubin processed by liver ready for digestion',
   'Indirect Bilirubin': 'Unprocessed bilirubin traveling to the liver',
@@ -53,28 +61,69 @@ const PARAM_SIMPLE_HINTS = {
   'eGFR': 'Estimated filtration speed of kidneys (higher is better)',
   'Uric Acid': 'Waste product from food breakdown; high levels link to gout',
   'TSH': 'Thyroid hormone controlling body energy and metabolism',
+  'Free T4': 'Active circulating thyroid hormone; determines overt vs subclinical thyroid issues',
+  'Free T3': 'Most active cellular thyroid hormone',
   'Vitamin D (25-OH)': 'Crucial nutrient for strong bones, immunity, and mood',
   'Vitamin B12': 'Essential for nerve function, brain clarity, and red cells',
   'Ferritin': 'Your body\'s reserve storage vault of iron',
   'C-Reactive Protein (CRP)': 'General marker of inflammation in the body',
+  'ESR': 'Sedimentation rate indicating chronic or acute systemic inflammation',
   'Sodium': 'Electrolyte balancing body fluids and nerve signals',
   'Potassium': 'Electrolyte vital for healthy heartbeats and muscles',
-  'Calcium': 'Mineral needed for strong bones, heart contractions, and nerves'
+  'Calcium': 'Mineral needed for strong bones, heart contractions, and nerves',
+  'Phosphorus': 'Mineral working alongside calcium for bone mineralization and cellular energy'
 }
+
+const CLINICAL_GUIDELINES = [
+  {
+    authority: 'American Diabetes Association (ADA)',
+    guideline: 'Standards of Medical Care in Diabetes',
+    summary: 'Normal fasting plasma glucose is <100 mg/dL. Impaired Fasting Glucose (prediabetes) is 100–125 mg/dL. Fasting glucose ≥126 mg/dL or HbA1c ≥6.5% on repeat confirms diabetes mellitus.'
+  },
+  {
+    authority: 'World Health Organization (WHO)',
+    guideline: 'Haemoglobin Concentrations for Anemia Diagnosis',
+    summary: 'Defines anemia as Hemoglobin <13.0 g/dL for adult males, <12.0 g/dL for non-pregnant adult females, and <11.0 g/dL in pregnancy. Microcytic indices (MCV <80 fL) suggest iron depletion.'
+  },
+  {
+    authority: 'Kidney Disease: Improving Global Outcomes (KDIGO)',
+    guideline: 'Clinical Practice Guideline for Kidney Disease',
+    summary: 'Evaluates renal filtration using Serum Creatinine and eGFR. eGFR <60 mL/min/1.73m² persisting for >3 months indicates chronic kidney disease staging.'
+  },
+  {
+    authority: 'American College of Cardiology / AHA',
+    guideline: 'Multisociety Guideline on Blood Cholesterol',
+    summary: 'Target LDL is <100 mg/dL for primary prevention in low-to-moderate risk, and <70 mg/dL in high atherosclerotic cardiovascular risk cohorts.'
+  },
+  {
+    authority: 'American Thyroid Association / Endocrine Society',
+    guideline: 'Evaluation of Thyroid Function',
+    summary: 'Standard adult TSH reference interval is 0.45 – 4.50 mIU/L. High TSH with normal Free T4 indicates subclinical hypothyroidism; low Free T4 confirms overt primary hypothyroidism.'
+  }
+]
 
 export default function BloodResultsView({ results, uploadedImage, navigate }) {
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isExportingPDF, setIsExportingPDF] = useState(false)
 
   const summary = results.summary || {}
   const parameters = results.parameters || []
   const conditions = results.conditions || []
+  const safety = results.safety || {}
+  const patientContext = results.patientContext || null
+  const followUps = results.followUpRecommendations || []
 
   const healthScore = summary.healthScore ?? 75
   const abnormalCount = summary.abnormalCount ?? 0
   const normalCount = summary.normalCount ?? parameters.length
   const criticalCount = summary.criticalCount ?? 0
   const doctorNeeded = summary.doctorConsultationRecommended ?? (abnormalCount > 2)
+
+  // Safety urgency assessment
+  const urgency = safety.overallUrgency || 'ROUTINE'
+  const isUrgent = urgency === 'URGENT'
+  const isPrompt = urgency === 'PROMPT'
 
   // Panels available
   const panels = useMemo(() => {
@@ -88,15 +137,15 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
   // Filtered parameters
   const filteredParameters = useMemo(() => {
     return parameters.filter(param => {
-      // Search filter
+      const name = param.canonicalName || param.name || ''
+      const panel = param.panel || ''
       const matchesSearch = 
         !searchQuery ||
-        param.canonicalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (param.panel && param.panel.toLowerCase().includes(searchQuery.toLowerCase()))
+        name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        panel.toLowerCase().includes(searchQuery.toLowerCase())
 
       if (!matchesSearch) return false
 
-      // Category filter
       if (activeFilter === 'all') return true
       if (activeFilter === 'abnormal') return param.status !== 'NORMAL'
       return param.panel === activeFilter
@@ -109,8 +158,9 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
       case 'NORMAL':
         return <span className="status-chip status-chip-normal"><CheckCircle2 size={12} /> Normal</span>
       case 'LOW':
-      case 'CRITICAL_LOW':
         return <span className="status-chip status-chip-low"><TrendingDown size={12} /> Low</span>
+      case 'CRITICAL_LOW':
+        return <span className="status-chip status-chip-critical"><AlertTriangle size={12} /> Critical Low</span>
       case 'HIGH':
         return <span className="status-chip status-chip-high"><TrendingUp size={12} /> High</span>
       case 'CRITICAL_HIGH':
@@ -132,7 +182,6 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
       return 50
     }
 
-    // Normal zone will span from 25% to 75% on our visual track
     const span = numHigh - numLow
     if (numVal < numLow) {
       const underRatio = (numLow - numVal) / span
@@ -145,6 +194,18 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
     } else {
       const inRatio = (numVal - numLow) / span
       return 25 + inRatio * 50
+    }
+  }
+
+  const handleExportPDF = () => {
+    setIsExportingPDF(true)
+    try {
+      exportBloodReportPDF(results, patientContext)
+    } catch (e) {
+      console.error('PDF export error:', e)
+      window.print()
+    } finally {
+      setIsExportingPDF(false)
     }
   }
 
@@ -178,14 +239,27 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
               <ArrowLeft size={16} />
               New Analysis
             </button>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button 
+                onClick={handleExportPDF}
+                className="btn btn-primary btn-sm" 
+                id="export-pdf-blood-report"
+                style={{
+                  background: 'linear-gradient(135deg, var(--accent-teal) 0%, #0d9488 100%)',
+                  gap: '6px'
+                }}
+                disabled={isExportingPDF}
+              >
+                <FileDown size={16} />
+                {isExportingPDF ? 'Generating PDF...' : 'Download Clinical PDF'}
+              </button>
               <button 
                 onClick={handlePrint}
                 className="btn btn-secondary btn-sm" 
                 id="print-blood-report"
               >
                 <Download size={16} />
-                Export / Print Report
+                Print View
               </button>
               <Link 
                 to="/blood" 
@@ -220,13 +294,13 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
           </div>
 
           <h1 className="text-h1">
-            <span className="text-gradient-blood">Blood Test Report</span> Analysis
+            <span className="text-gradient-blood">Blood Test Report</span> Clinical Interpretation
           </h1>
           
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginTop: '16px', flexWrap: 'wrap' }}>
-            <span className={`status-badge ${abnormalCount === 0 ? 'status-badge-success' : 'status-badge-warning'}`}>
-              <CheckCircle2 size={12} />
-              {summary.overallStatus || (abnormalCount === 0 ? 'Normal Profile' : 'Abnormalities Flagged')}
+            <span className={`status-badge ${abnormalCount === 0 ? 'status-badge-success' : isUrgent ? 'status-badge-danger' : 'status-badge-warning'}`}>
+              {isUrgent ? <ShieldAlert size={12} /> : <CheckCircle2 size={12} />}
+              {summary.overallStatus || (abnormalCount === 0 ? 'Optimal Profile' : 'Abnormalities Flagged')}
             </span>
             {results.processingTime && (
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
@@ -236,6 +310,173 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
             )}
           </div>
         </motion.div>
+
+        {/* DETERMINISTIC SAFETY LAYER BANNER */}
+        {(isUrgent || isPrompt || (safety.criticalAlerts && safety.criticalAlerts.length > 0)) && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            style={{
+              background: isUrgent 
+                ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(185, 28, 28, 0.08) 100%)'
+                : 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(180, 83, 9, 0.08) 100%)',
+              border: isUrgent ? '2px solid rgba(239, 68, 68, 0.5)' : '2px solid rgba(245, 158, 11, 0.45)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '24px',
+              marginBottom: '32px',
+              boxShadow: isUrgent ? '0 12px 36px rgba(239, 68, 68, 0.2)' : '0 12px 36px rgba(245, 158, 11, 0.15)'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+              <div style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: isUrgent ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: isUrgent ? 'var(--accent-coral)' : 'var(--accent-amber)',
+                flexShrink: 0
+              }}>
+                <ShieldAlert size={26} />
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                  <h3 style={{
+                    fontSize: '1.15rem',
+                    fontWeight: 700,
+                    margin: 0,
+                    color: isUrgent ? 'var(--accent-coral)' : 'var(--accent-amber)'
+                  }}>
+                    {isUrgent ? 'CRITICAL LABORATORY FINDINGS IDENTIFIED (URGENT EVALUATION)' : 'PROMPT MEDICAL ATTENTION RECOMMENDED'}
+                  </h3>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-full)',
+                    background: isUrgent ? 'rgba(239, 68, 68, 0.25)' : 'rgba(245, 158, 11, 0.25)',
+                    color: isUrgent ? 'var(--accent-coral)' : 'var(--accent-amber)',
+                    textTransform: 'uppercase'
+                  }}>
+                    Deterministic Safety Layer
+                  </span>
+                </div>
+
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 14px 0' }}>
+                  {safety.urgencyMessage || 'One or more of your lab results breach clinical alert thresholds established by laboratory safety guidelines (CAP/CLIA).'}
+                </p>
+
+                {/* Specific Critical Alerts */}
+                {safety.criticalAlerts && safety.criticalAlerts.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+                    {safety.criticalAlerts.map((ca, idx) => (
+                      <div 
+                        key={idx}
+                        style={{
+                          background: 'rgba(0, 0, 0, 0.2)',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '13px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          borderLeft: '3px solid var(--accent-coral)'
+                        }}
+                      >
+                        <AlertTriangle size={16} style={{ color: 'var(--accent-coral)', flexShrink: 0 }} />
+                        <span><strong>{ca.parameter}</strong> ({ca.value} {ca.unit}) — {ca.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Dangerous Combination Alerts */}
+                {safety.combinationAlerts && safety.combinationAlerts.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+                    {safety.combinationAlerts.map((comb, idx) => (
+                      <div 
+                        key={idx}
+                        style={{
+                          background: 'rgba(0, 0, 0, 0.2)',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '13px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          borderLeft: '3px solid var(--accent-amber)'
+                        }}
+                      >
+                        <HeartPulse size={16} style={{ color: 'var(--accent-amber)', flexShrink: 0 }} />
+                        <span><strong>{comb.name}</strong>: {comb.warning}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{
+                  fontSize: '12px',
+                  color: 'var(--text-tertiary)',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                  paddingTop: '10px'
+                }}>
+                  ⚠️ <em>Notice: Spandan AI is an automated clinical interpretation tool, not an emergency facility. If experiencing chest pain, difficulty breathing, or severe dizziness, immediately contact local emergency services.</em>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* PATIENT PROFILE CARD (If context provided) */}
+        {patientContext && (
+          <div style={{
+            background: 'var(--surface-primary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-xl)',
+            padding: '16px 24px',
+            marginBottom: '28px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(20, 184, 166, 0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--accent-teal)'
+              }}>
+                <User size={22} />
+              </div>
+              <div>
+                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Patient Context Profile
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {patientContext.age ? `${patientContext.age} yrs` : 'Age N/A'} • {patientContext.sex || 'Sex N/A'} • {patientContext.fasting || 'Fasting'}
+                  {patientContext.pregnancy && patientContext.pregnancy !== 'No' && ` • Pregnant (${patientContext.pregnancy})`}
+                </div>
+              </div>
+            </div>
+
+            {patientContext.symptoms && (
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '450px' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Reported Symptoms: </span>
+                <span style={{ color: 'var(--accent-amber)' }}>{patientContext.symptoms}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Top KPI Cards */}
         <div className="blood-kpi-grid">
@@ -274,12 +515,15 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
 
           {/* High Acuity Flags */}
           <div className="blood-kpi-card blood-kpi-critical">
-            <div className="blood-kpi-label">Needs Attention</div>
-            <div className="blood-kpi-value" style={{ color: criticalCount > 0 ? 'var(--accent-rose)' : 'var(--text-muted)' }}>
-              {criticalCount}
+            <div className="blood-kpi-label">Urgency Classification</div>
+            <div className="blood-kpi-value" style={{ 
+              color: isUrgent ? 'var(--accent-rose)' : isPrompt ? 'var(--accent-amber)' : 'var(--accent-cyan)',
+              fontSize: '1.4rem'
+            }}>
+              {urgency}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              {criticalCount > 0 ? 'Priority doctor review' : 'No critical emergencies flagged'}
+              {isUrgent ? 'Immediate clinician review' : isPrompt ? 'Prompt review (within days)' : 'Routine checkup'}
             </div>
           </div>
         </div>
@@ -300,7 +544,7 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
             <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
               What Your Report Means (In Everyday Words)
             </h4>
-            <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
               {abnormalCount === 0 
                 ? "Great news! All tested lab markers fall within typical adult ranges. Keep up your balanced nutrition, good sleep, and healthy habits."
                 : `We identified ${abnormalCount} test ${abnormalCount === 1 ? 'number' : 'numbers'} outside standard adult guidelines. These variances often respond well to simple dietary, hydration, or lifestyle adjustments. Review our AI summary below and bring this report to your doctor.`}
@@ -321,9 +565,9 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
               <h4 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
                 Physician Consultation Recommended
               </h4>
-              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
                 One or more of your laboratory test values deviate from standard reference intervals. 
-                Correlated patterns such as {conditions.slice(0, 2).map(c => c.condition).join(' and ')} warrant 
+                Correlated patterns such as {conditions.slice(0, 2).map(c => c.condition).join(' and ') || 'metabolic deviations'} warrant 
                 clinical evaluation by your primary physician or specialist for proper dietary guidance, follow-up tests, or treatment.
               </p>
             </div>
@@ -332,6 +576,115 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
 
         {/* AI Clinical Report Explainer & Assistant */}
         <AIReportExplainer reportData={results} module="blood" />
+
+        {/* FOLLOW-UP INVESTIGATION RECOMMENDATIONS SECTION */}
+        {followUps && followUps.length > 0 && (
+          <motion.div
+            style={{ marginTop: '36px', marginBottom: '36px' }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div style={{
+              background: 'var(--surface-primary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-xl)',
+              overflow: 'hidden',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+            }}>
+              <div style={{
+                padding: '20px 24px',
+                borderBottom: '1px solid var(--border-color)',
+                background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <ClipboardList size={22} style={{ color: 'var(--accent-teal)' }} />
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
+                      Recommended Follow-Up Investigations ({followUps.length})
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-tertiary)' }}>
+                      Clinically indicated tests to confirm diagnoses or monitor organ trajectories
+                    </p>
+                  </div>
+                </div>
+
+                <span style={{
+                  fontSize: '12px',
+                  color: 'var(--accent-teal)',
+                  background: 'rgba(20, 184, 166, 0.12)',
+                  padding: '4px 10px',
+                  borderRadius: 'var(--radius-full)',
+                  fontWeight: 600
+                }}>
+                  Doctor Decision Support
+                </span>
+              </div>
+
+              <div style={{ padding: '20px 24px' }}>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                  gap: '16px'
+                }}>
+                  {followUps.map((fu, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: 'var(--radius-lg)',
+                        padding: '16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {fu.test}
+                          </h4>
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 'var(--radius-full)',
+                            background: fu.priority === 'Recommended' ? 'rgba(20, 184, 166, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                            color: fu.priority === 'Recommended' ? 'var(--accent-teal)' : 'var(--accent-amber)'
+                          }}>
+                            {fu.priority || 'Recommended'}
+                          </span>
+                        </div>
+
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 10px 0' }}>
+                          <strong>Reason:</strong> {fu.reason}
+                        </p>
+
+                        {fu.supportingFinding && (
+                          <div style={{ fontSize: '12px', color: 'var(--accent-amber)', marginBottom: '8px' }}>
+                            <strong>Trigger finding:</strong> {fu.supportingFinding}
+                          </div>
+                        )}
+
+                        {fu.question && (
+                          <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
+                            <strong>Diagnostic question:</strong> "{fu.question}"
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Main Content Grid: Correlated Conditions & Detailed Parameters */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(360px, 1.4fr)', gap: '32px' }} className="blood-main-grid">
@@ -494,7 +847,7 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
 
                   return (
                     <motion.div
-                      key={param.canonicalName}
+                      key={param.canonicalName || param.name}
                       className="glass-card-static"
                       style={{ padding: '16px 20px', borderRadius: 'var(--radius-md)' }}
                       initial={{ opacity: 0 }}
@@ -504,7 +857,7 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                              {param.canonicalName}
+                              {param.canonicalName || param.name}
                             </span>
                             {param.panel && (
                               <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
@@ -512,9 +865,9 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
                               </span>
                             )}
                           </div>
-                          {PARAM_SIMPLE_HINTS[param.canonicalName] && (
+                          {PARAM_SIMPLE_HINTS[param.canonicalName || param.name] && (
                             <div style={{ fontSize: '0.75rem', color: 'var(--accent)', marginTop: '2px', fontWeight: 500 }}>
-                              💡 {PARAM_SIMPLE_HINTS[param.canonicalName]}
+                              💡 {PARAM_SIMPLE_HINTS[param.canonicalName || param.name]}
                             </div>
                           )}
                         </div>
@@ -549,9 +902,9 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
                         </div>
                       </div>
 
-                      {param.significance && (
+                      {(param.significance || param.clinicalSignificance) && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '10px', fontStyle: 'italic' }}>
-                          Clinical significance: {param.significance}
+                          Clinical significance: {param.clinicalSignificance || param.significance}
                         </div>
                       )}
                     </motion.div>
@@ -562,9 +915,58 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
           </div>
         </div>
 
+        {/* EVIDENCE-BASED CLINICAL GUIDELINES SECTION */}
+        <motion.div
+          style={{ maxWidth: '1200px', margin: '40px auto 0' }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <div className="glass-card-static" style={{ padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+              <BookOpen size={20} style={{ color: 'var(--accent-teal)' }} />
+              <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>
+                Evidence-Based Medical Guidelines & Literature Citations
+              </h4>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
+              Spandan benchmarks test parameters and clinical patterns against established guidelines published by international medical authorities:
+            </p>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '14px'
+            }}>
+              {CLINICAL_GUIDELINES.map((gl, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '14px'
+                  }}
+                >
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-teal)', marginBottom: '2px' }}>
+                    {gl.authority}
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                    {gl.guideline}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
+                    {gl.summary}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+
         {/* Educational Info Box */}
         <motion.div
-          style={{ maxWidth: '1200px', margin: '36px auto 0' }}
+          style={{ maxWidth: '1200px', margin: '24px auto 0' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
@@ -576,7 +978,7 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
                 <h4 style={{ fontSize: '0.9375rem', fontWeight: 600, marginBottom: '6px' }}>
                   Understanding Your Blood Report Analysis
                 </h4>
-                <p className="text-small" style={{ lineHeight: 1.7 }}>
+                <p className="text-small" style={{ lineHeight: 1.7, margin: 0 }}>
                   Laboratory reference ranges reflect 95% of healthy individuals within standard adult cohorts.
                   Isolated minor deviations may result from circadian rhythms, recent exercise, dietary changes, or mild dehydration.
                   However, combinations of abnormal tests (e.g. low hemoglobin with low MCV and low ferritin) represent clinically 
@@ -599,9 +1001,17 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
+          <button
+            onClick={handleExportPDF}
+            className="btn btn-blood btn-lg"
+            style={{ marginRight: '12px' }}
+          >
+            <FileDown size={18} />
+            Download Complete PDF Report
+          </button>
           <Link 
             to="/blood" 
-            className="btn btn-blood btn-lg"
+            className="btn btn-secondary btn-lg"
             id="new-blood-analysis-btn"
           >
             <RotateCcw size={18} />

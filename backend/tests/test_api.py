@@ -216,5 +216,67 @@ def test_ai_chat_report_endpoint():
     assert len(data["followUpSuggestions"]) > 0
 
 
+def test_blood_extract_endpoint():
+    with open(BLOOD_SAMPLE_PATH, "rb") as f:
+        response = client.post("/api/blood/extract", files={"file": ("sample_blood_report.png", f, "image/png")})
+    assert response.status_code == 200
+    data = response.json()
+    assert "parameters" in data
+    assert "extractedCount" in data
+    assert data["extractedCount"] > 0
+    assert "disclaimer" in data
+
+
+def test_blood_analyze_comprehensive_endpoint():
+    payload = {
+        "parameters": {
+            "Hemoglobin": 9.5,
+            "MCV": 72.0,
+            "Total Cholesterol": 240.0,
+            "Fasting Blood Glucose": 115.0
+        },
+        "patientContext": {
+            "age": 45,
+            "sex": "Female",
+            "fasting": "Fasting (12 hours)",
+            "symptoms": "Occasional mild fatigue"
+        }
+    }
+    response = client.post("/api/blood/analyze-comprehensive", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["module"] == "blood"
+    assert "parameters" in data
+    assert "conditions" in data
+    assert "safety" in data
+    assert "followUpRecommendations" in data
+    assert "aiExplanation" in data
+    assert data["safety"]["overallUrgency"] in ["NONE", "ROUTINE", "PROMPT", "URGENT"]
+    assert len(data["followUpRecommendations"]) > 0
+
+
+def test_blood_safety_check_endpoint():
+    # Test critical alert triggering
+    payload = {
+        "parameters": {
+            "Potassium": 6.8,
+            "Creatinine": 3.2,
+            "Hemoglobin": 6.5
+        },
+        "patientContext": {
+            "symptoms": "chest pain and severe weakness"
+        }
+    }
+    response = client.post("/api/blood/safety-check", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["hasCriticalFindings"] is True
+    assert data["overallUrgency"] == "URGENT"
+    assert len(data["criticalAlerts"]) >= 2
+    assert len(data["combinationAlerts"]) >= 1
+    assert len(data["symptomEscalations"]) >= 1
+
+
 if __name__ == "__main__":
     pytest.main(["-v", __file__])
+

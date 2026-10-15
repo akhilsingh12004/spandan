@@ -41,9 +41,10 @@ export async function predictSkin(imageFile) {
  * Predict condition and evaluate blood test report (image or PDF or manual inputs)
  * @param {File|null} file - The uploaded PDF or image
  * @param {Object|null} manualData - Optional manual parameters { "Hemoglobin": 11.2, ... }
+ * @param {Object|null} patientContext - Optional patient context (age, sex, symptoms, medications)
  * @returns {Promise} - Prediction & interpretation results
  */
-export async function predictBloodReport(file = null, manualData = null) {
+export async function predictBloodReport(file = null, manualData = null, patientContext = null) {
   const formData = new FormData()
   if (file) {
     formData.append('file', file)
@@ -51,12 +52,64 @@ export async function predictBloodReport(file = null, manualData = null) {
   if (manualData && Object.keys(manualData).length > 0) {
     formData.append('manual_data', JSON.stringify(manualData))
   }
+  if (patientContext && Object.keys(patientContext).length > 0) {
+    formData.append('patient_context', JSON.stringify(patientContext))
+  }
 
   const response = await api.post('/api/predict/blood', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return response.data
 }
+
+/**
+ * Extract raw text and parsed laboratory parameters from an uploaded report file
+ * for the Review & Correction step prior to final analysis.
+ * @param {File} file - The uploaded report (image or PDF)
+ * @returns {Promise} - Extracted parameters and metadata
+ */
+export async function extractBloodParameters(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await api.post('/api/blood/extract', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
+/**
+ * Comprehensive analysis of reviewed blood parameters and patient context
+ * @param {Object} options
+ * @param {Object|Array} options.parameters - Verified parameter values
+ * @param {Object} options.patientContext - Patient clinical profile (age, sex, fasting, symptoms)
+ * @param {string} options.rawText - Optional OCR text
+ * @returns {Promise} - Comprehensive clinical interpretation results
+ */
+export async function analyzeComprehensiveBlood({ parameters, patientContext, rawText = '' }) {
+  const response = await api.post('/api/blood/analyze-comprehensive', {
+    parameters,
+    patientContext,
+    rawText,
+  })
+  return response.data
+}
+
+/**
+ * Deterministic safety check evaluating parameters against validated clinical alert thresholds
+ * @param {Object} options
+ * @param {Object|Array} options.parameters
+ * @param {Object} options.patientContext
+ * @returns {Promise} - Safety alerts and urgency evaluation
+ */
+export async function checkBloodSafety({ parameters, patientContext }) {
+  const response = await api.post('/api/blood/safety-check', {
+    parameters,
+    patientContext,
+  })
+  return response.data
+}
+
 
 /**
  * Fetch master blood test reference ranges and panels

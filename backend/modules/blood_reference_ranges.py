@@ -9,13 +9,13 @@ from typing import Dict, Any, List, Optional, Tuple
 BLOOD_PANELS = {
     "Complete Blood Count (CBC)": [
         "Hemoglobin", "WBC Count", "RBC Count", "Platelet Count", 
-        "Hematocrit (HCT)", "MCV", "MCH", "MCHC"
+        "Hematocrit (HCT)", "MCV", "MCH", "MCHC", "RDW"
     ],
     "Lipid Profile": [
         "Total Cholesterol", "LDL Cholesterol", "HDL Cholesterol", "Triglycerides"
     ],
     "Blood Sugar / Glycemic": [
-        "Fasting Blood Glucose", "Postprandial Glucose", "HbA1c"
+        "Fasting Blood Glucose", "Postprandial Glucose", "Random Blood Glucose", "HbA1c"
     ],
     "Liver Function Test (LFT)": [
         "Total Bilirubin", "Direct Bilirubin", "Indirect Bilirubin",
@@ -26,18 +26,19 @@ BLOOD_PANELS = {
         "Creatinine", "Blood Urea Nitrogen (BUN)", "eGFR", "Uric Acid"
     ],
     "Thyroid Panel": [
-        "TSH", "Total T3", "Total T4"
+        "TSH", "Free T4", "Free T3", "Total T3", "Total T4"
     ],
     "Electrolytes": [
-        "Sodium", "Potassium", "Chloride"
+        "Sodium", "Potassium", "Chloride", "Calcium", "Phosphorus"
     ],
     "Vitamins & Minerals": [
-        "Vitamin D (25-OH)", "Vitamin B12", "Serum Iron", "Ferritin"
+        "Vitamin D (25-OH)", "Vitamin B12", "Serum Iron", "Ferritin", "TIBC"
     ],
     "Inflammation Markers": [
         "C-Reactive Protein (CRP)", "ESR"
     ]
 }
+
 
 # Master Reference Range Dictionary
 # min, max, unit, aliases, critical_low, critical_high, low_desc, high_desc, valid_min, valid_max
@@ -600,6 +601,107 @@ REFERENCE_RANGES: Dict[str, Dict[str, Any]] = {
         "valid_max": 160.0,
         "low_desc": "Normal baseline.",
         "high_desc": "Elevated ESR indicates non-specific systemic inflammation, infection, or tissue response."
+    },
+
+    # ── Additional CBC Parameters ──
+    "RDW": {
+        "panel": "Complete Blood Count (CBC)",
+        "min": 11.5,
+        "max": 14.5,
+        "unit": "%",
+        "aliases": ["rdw", "red cell distribution width", "rdw-cv", "rdw cv", "rbc distribution width"],
+        "critical_low": None,
+        "critical_high": 22.0,
+        "valid_min": 8.0,
+        "valid_max": 35.0,
+        "low_desc": "Generally normal; homogeneous red cell population.",
+        "high_desc": "Elevated RDW (anisocytosis) indicates mixed red cell populations, often seen in iron deficiency, B12/folate deficiency, or early treatment response."
+    },
+
+    # ── Extended Thyroid Parameters ──
+    "Free T4": {
+        "panel": "Thyroid Panel",
+        "min": 0.8,
+        "max": 1.8,
+        "unit": "ng/dL",
+        "aliases": ["free t4", "ft4", "free thyroxine", "f. t4", "s. free t4"],
+        "critical_low": 0.3,
+        "critical_high": 5.0,
+        "valid_min": 0.1,
+        "valid_max": 12.0,
+        "low_desc": "Low free T4 confirms hypothyroidism when TSH is elevated.",
+        "high_desc": "Elevated free T4 confirms hyperthyroidism or thyrotoxicosis."
+    },
+    "Free T3": {
+        "panel": "Thyroid Panel",
+        "min": 2.3,
+        "max": 4.2,
+        "unit": "pg/mL",
+        "aliases": ["free t3", "ft3", "free triiodothyronine", "f. t3", "s. free t3"],
+        "critical_low": 1.0,
+        "critical_high": 8.0,
+        "valid_min": 0.3,
+        "valid_max": 20.0,
+        "low_desc": "Low free T3 occurs in hypothyroidism or non-thyroidal illness syndrome.",
+        "high_desc": "Elevated free T3 is an early marker of T3-predominant thyrotoxicosis."
+    },
+
+    # ── Additional Glycemic Parameters ──
+    "Random Blood Glucose": {
+        "panel": "Blood Sugar / Glycemic",
+        "min": 70.0,
+        "max": 140.0,
+        "unit": "mg/dL",
+        "aliases": ["random blood glucose", "random glucose", "rbs", "random blood sugar", "glucose random"],
+        "critical_low": 40.0,
+        "critical_high": 400.0,
+        "valid_min": 15.0,
+        "valid_max": 900.0,
+        "low_desc": "Hypoglycemia requires immediate sugar intake.",
+        "high_desc": "Random glucose ≥200 mg/dL with symptoms is diagnostic of diabetes mellitus."
+    },
+
+    # ── Iron Studies Extension ──
+    "TIBC": {
+        "panel": "Vitamins & Minerals",
+        "min": 250.0,
+        "max": 400.0,
+        "unit": "mcg/dL",
+        "aliases": ["tibc", "total iron binding capacity", "total iron-binding capacity"],
+        "critical_low": None,
+        "critical_high": None,
+        "valid_min": 100.0,
+        "valid_max": 700.0,
+        "low_desc": "Low TIBC may indicate iron overload, chronic disease, or malnutrition.",
+        "high_desc": "Elevated TIBC reflects iron deficiency as the body increases transferrin production to capture more iron."
+    },
+
+    # ── Additional Minerals ──
+    "Calcium": {
+        "panel": "Electrolytes",
+        "min": 8.5,
+        "max": 10.5,
+        "unit": "mg/dL",
+        "aliases": ["calcium", "serum calcium", "s. calcium", "total calcium", "ca", "ca2+"],
+        "critical_low": 6.5,
+        "critical_high": 13.0,
+        "valid_min": 3.0,
+        "valid_max": 18.0,
+        "low_desc": "Hypocalcemia may cause muscle cramps, numbness, or cardiac arrhythmias.",
+        "high_desc": "Hypercalcemia may indicate hyperparathyroidism, malignancy, or excessive vitamin D."
+    },
+    "Phosphorus": {
+        "panel": "Electrolytes",
+        "min": 2.5,
+        "max": 4.5,
+        "unit": "mg/dL",
+        "aliases": ["phosphorus", "phosphate", "serum phosphorus", "s. phosphorus", "inorganic phosphate"],
+        "critical_low": 1.0,
+        "critical_high": 7.0,
+        "valid_min": 0.5,
+        "valid_max": 12.0,
+        "low_desc": "Low phosphorus can cause muscle weakness, bone pain, and impaired cellular energy production.",
+        "high_desc": "Elevated phosphorus is commonly seen in renal failure and can promote vascular calcification."
     },
 }
 

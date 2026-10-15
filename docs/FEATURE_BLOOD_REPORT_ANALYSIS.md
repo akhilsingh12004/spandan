@@ -197,4 +197,41 @@ $$\text{Health Score} = \max(20, \text{round}(100.0 - \text{Deduction}))$$
      $$\text{Position} = 25\% + \left(\frac{\text{Value} - \text{Min}}{\text{Max} - \text{Min}}\right) \times 50\%$$
    - Color-coded pins indicate status: *Normal* (cyan), *Low* (amber), *High* (amber), and *Critical* (rose).
 5. **Panel Filter Tabs & Instant Search**: Filter parameters by panel (*CBC*, *Lipid Profile*, *LFT*, *KFT*, *Thyroid*, *Vitamins*, *Inflammation*) or search test names in real time.
-6. **Print & Export**: Built-in `window.print()` layout styling formatted for clinical consultations.
+6. **Clinical PDF Export**: Client-side multi-page PDF generation via `jsPDF` and `jspdf-autotable` containing patient profile, safety assessments, laboratory benchmark tables, organ evaluations, follow-up recommendations, and disclaimers.
+
+---
+
+### 8. Upgraded AI Capabilities & Safety Architecture (v2.0)
+
+#### 8.1 Patient Clinical Context Collection
+- Ingests patient age, biological sex, fasting status (Fasting 8-12h vs Non-Fasting vs Random), pregnancy status, reported symptoms (fatigue, weakness, chest discomfort, jaundice), and current medications.
+- Injects patient context directly into reference range evaluation, safety escalation, and AI prompts.
+
+#### 8.2 Two-Stage Extraction & Verification Workflow (`BloodReviewStep.jsx`)
+- **Stage 1 (Extraction)**: Calls `/api/blood/extract` to parse laboratory parameters and OCR text without immediate diagnostic judgment.
+- **Stage 2 (Review & Edit)**: The patient inspects an editable tabular review interface to confirm that extracted numbers, units, and decimal points match their original paper/PDF report. Missing parameters can be added and misrecognized rows deleted before running AI analysis.
+
+#### 8.3 Deterministic Laboratory Safety Layer (`blood_safety.py`)
+- Operates independently from the LLM based on validated clinical critical limits (CAP/CLIA):
+  - **Individual Critical Limits**: Hemoglobin (<7.0 or >20.0 g/dL), WBC (<2,000 or >30,000 /µL), Platelets (<50,000 or >1,000,000 /µL), Potassium (<2.8 or >6.2 mEq/L), Sodium (<120 or >160 mEq/L), Fasting Glucose (<40 or >450 mg/dL), Creatinine (>10.0 mg/dL), Calcium (<6.5 or >13.0 mg/dL).
+  - **Dangerous Parameter Combinations**: Hyperkalemia with Renal Failure (Potassium >5.5 + Creatinine >2.0), Acute Hepatic Distress (Total Bilirubin >5.0 + ALT >200), Pancytopenia Pattern (low Hb + low WBC + low Platelets).
+  - **Symptom Escalations**: Urgent triage if abnormal labs coincide with chest pain, difficulty breathing, or severe weakness.
+  - **Acuity Tiers**: `URGENT`, `PROMPT`, `ROUTINE`, `OPTIMAL`.
+
+#### 8.4 Follow-Up Investigation Recommendations Engine
+- Dynamically recommends confirmatory tests with clinical rationales, trigger findings, and diagnostic questions:
+  - Low Hb without iron markers $\rightarrow$ *Serum Ferritin & Iron Studies*
+  - Macrocytosis (MCV >100 fL) without B12 $\rightarrow$ *Serum Vitamin B12 & Folate*
+  - Abnormal TSH without Free T4 $\rightarrow$ *Free T4 (Free Thyroxine)*
+  - Significant anemia with abnormal cell size $\rightarrow$ *Peripheral Blood Smear*
+  - Prediabetic fasting glucose without HbA1c $\rightarrow$ *HbA1c (Glycated Hemoglobin)*
+  - Marked transaminitis or hyperbilirubinemia $\rightarrow$ *Abdominal Ultrasound*
+  - Elevated creatinine without eGFR $\rightarrow$ *eGFR Assessment*
+
+#### 8.5 Evidence-Based Medical Literature & Guideline Citations
+- ADA Standards of Medical Care in Diabetes
+- WHO Haemoglobin Concentrations for Anemia Diagnosis
+- KDIGO Clinical Practice Guideline for Kidney Disease
+- AHA/ACC Multisociety Guideline on Blood Cholesterol
+- Endocrine Society Guidelines for Thyroid Disease
+

@@ -355,75 +355,73 @@ def get_smart_fallback_parameters(raw_text: str = "", filename: str = "") -> Dic
     }
 
 
-def process_blood_report(
-    file_bytes: bytes, filename: str = "report.png", manual_data: Dict[str, float] = None
+def extract_parameters_from_report(
+    file_bytes: bytes,
+    filename: str = "report.png"
 ) -> Dict[str, Any]:
     """
-    End-to-end blood report analysis pipeline:
-    1. Detects file type (PDF vs Image)
-    2. Runs high-accuracy text extraction (RapidOCR / pdfplumber)
-    3. Parses lab parameters using resilient regex with physiological validation
-    4. Merges any manual/override parameters provided by user
-    5. Benchmarks parameters against clinical reference ranges
-    6. Identifies correlated diseases (including Jaundice / Hyperbilirubinemia)
+    Extracts raw text and parsed parameters from a blood test report (PDF or Image)
+    without running full AI interpretation.
+    Designed for the Review & Correction step before final analysis.
     """
-    start_time = time.time()
-    raw_text = ""
-    is_pdf = filename.lower().endswith(".pdf") or file_bytes[:4] == b"%PDF"
-
+    is_pdf = filename.lower().endswith(".pdf") or (file_bytes and file_bytes[:4] == b"%PDF")
     if is_pdf:
         raw_text = extract_text_from_pdf(file_bytes)
     else:
         raw_text = extract_text_from_image(file_bytes)
 
-    # Parse parameters from extracted text
     parsed_params = parse_report_text(raw_text)
-
-    # If manual data is provided (e.g. user typed in values or quick-filled), merge it
-    if manual_data:
-        for k, v in manual_data.items():
-            canon_name, data = lookup_reference_range(k)
-            if canon_name:
-                try:
-                    val_num = float(v)
-                    v_min = data.get("valid_min", 0.0) if data else 0.0
-                    v_max = data.get("valid_max", 100000.0) if data else 100000.0
-                    if v_min <= val_num <= v_max:
-                        parsed_params[canon_name] = val_num
-                except (ValueError, TypeError):
-                    continue
-
-    # Fallback to realistic clinical demonstration report if raw text had no recognizable values
-    if len(parsed_params) == 0:
+    used_fallback = False
+    if not parsed_params:
         parsed_params = get_smart_fallback_parameters(raw_text, filename)
+        used_fallback = True
 
-    # Evaluate each parameter
-    evaluated_list: List[Dict[str, Any]] = []
-    for param_name, param_val in parsed_params.items():
-        eval_result = evaluate_parameter(param_name, param_val)
-        evaluated_list.append(eval_result)
-
-    # Sort evaluated list: Abnormal parameters first, then by panel
+    evaluated_list = [evaluate_parameter(p_name, p_val) for p_name, p_val in parsed_params.items()]
     evaluated_list.sort(key=lambda x: (not x.get("isAbnormal", False), x.get("panel", ""), x["canonicalName"]))
 
-    # Analyze multi-parameter condition patterns
-    pattern_results = analyze_blood_patterns(evaluated_list)
-
-    elapsed = round(time.time() - start_time, 2)
-
     return {
-        "module": "blood",
+        "rawText": raw_text[:3000] if raw_text else "",
         "parameters": evaluated_list,
-        "conditions": pattern_results["conditions"],
-        "summary": {
-            "totalEvaluated": pattern_results["totalEvaluated"],
-            "abnormalCount": pattern_results["abnormalCount"],
-            "criticalCount": pattern_results["criticalCount"],
-            "normalCount": pattern_results["normalCount"],
-            "healthScore": pattern_results["healthScore"],
-            "overallStatus": pattern_results["overallStatus"],
-            "doctorConsultationRecommended": pattern_results["doctorConsultationRecommended"]
-        },
-        "rawTextExtracted": raw_text[:800] if raw_text else "Processed via structured laboratory report scanner.",
-        "processingTime": f"{elapsed}s"
+        "parameterMap": parsed_params,
+        "extractedCount": len(parsed_params),
+        "filename": filename,
+        "usedFallback": used_fallback
     }
+
+
+def process_blood_report(
+    file_bytes: bytes,
+    filename: str = "report.png",
+    manual_data: Dict[str, float] = None,
+    api_key: Optional[str] = None,
+    provider: Optional[str] = None,
+    patient_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    End-to-end blood report analysis pipeline powered by the Spandan AI Layer:
+    1. Detects file type (PDF vs Image)
+    2. Runs high-accuracy text extraction (RapidOCR / pdfplumber)
+    3. Invokes Generative Multimodal AI (Gemini / OpenAI / Groq) if key is present
+    4. Falls back to resilient clinical benchmark engine if in offline mode
+    5. Benchmarks parameters, evaluates disease patterns, and generates comprehensive AI explanations
+    """
+    from modules.blood_ai_layer import analyze_blood_report_with_ai
+
+    raw_text = ""
+    is_pdf = filename.lower().endswith(".pdf") or (file_bytes and file_bytes[:4] == b"%PDF")
+    if is_pdf:
+        raw_text = extract_text_from_pdf(file_bytes)
+    else:
+        raw_text = extract_text_from_image(file_bytes)
+
+    return analyze_blood_report_with_ai(
+        file_bytes=file_bytes,
+        filename=filename,
+        raw_text=raw_text,
+        manual_data=manual_data,
+        api_key=api_key,
+        provider=provider,
+        patient_context=patient_context,
+    )
+
+

@@ -339,6 +339,148 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
             "recommendation": "Consult a physician to identify the underlying source of bacterial, viral, or autoimmune inflammation."
         })
 
+    # ─────────────────────────────────────────────────────────────
+    # 8. Thyroid Dysfunction Patterns
+    # ─────────────────────────────────────────────────────────────
+    tsh = val_map.get("TSH")
+    ft4 = val_map.get("Free T4")
+    ft3 = val_map.get("Free T3")
+    t3 = val_map.get("Total T3")
+    t4 = val_map.get("Total T4")
+
+    if tsh is not None:
+        if tsh > 4.5:
+            thyroid_evidence = [f"TSH elevated at {tsh} mIU/L (Reference: 0.4 - 4.5 mIU/L)"]
+            if ft4 is not None and ft4 < 0.8:
+                thyroid_evidence.append(f"Free T4 low at {ft4} ng/dL")
+                conditions.append({
+                    "condition": "Primary Hypothyroidism",
+                    "category": "Thyroid & Endocrine",
+                    "severity": "High" if tsh > 10.0 else "Moderate",
+                    "confidence": 0.94,
+                    "evidence": thyroid_evidence,
+                    "recommendation": "Consult an endocrinologist. Elevated TSH with low Free T4 confirms primary hypothyroidism requiring evaluation for thyroid hormone replacement."
+                })
+            else:
+                if ft4 is not None:
+                    thyroid_evidence.append(f"Free T4: {ft4} ng/dL (within or near reference)")
+                conditions.append({
+                    "condition": "Subclinical Hypothyroidism / Elevated TSH",
+                    "category": "Thyroid & Endocrine",
+                    "severity": "Moderate" if tsh > 10.0 else "Mild",
+                    "confidence": 0.88,
+                    "evidence": thyroid_evidence,
+                    "recommendation": "Discuss with your physician. Subclinical hypothyroidism may or may not require treatment depending on symptoms and TSH level. Consider Free T4 testing if not already done."
+                })
+        elif tsh < 0.4:
+            thyroid_evidence = [f"TSH suppressed at {tsh} mIU/L (Reference: 0.4 - 4.5 mIU/L)"]
+            if ft4 is not None and ft4 > 1.8:
+                thyroid_evidence.append(f"Free T4 elevated at {ft4} ng/dL")
+                conditions.append({
+                    "condition": "Primary Hyperthyroidism / Thyrotoxicosis",
+                    "category": "Thyroid & Endocrine",
+                    "severity": "High",
+                    "confidence": 0.93,
+                    "evidence": thyroid_evidence,
+                    "recommendation": "Urgent endocrine evaluation recommended. Suppressed TSH with elevated Free T4 confirms hyperthyroidism. Further workup may include thyroid antibodies and imaging."
+                })
+            else:
+                if ft4 is not None:
+                    thyroid_evidence.append(f"Free T4: {ft4} ng/dL")
+                conditions.append({
+                    "condition": "Subclinical Hyperthyroidism / Suppressed TSH",
+                    "category": "Thyroid & Endocrine",
+                    "severity": "Moderate",
+                    "confidence": 0.85,
+                    "evidence": thyroid_evidence,
+                    "recommendation": "Discuss with your physician. Suppressed TSH with normal thyroid hormones may warrant monitoring or further evaluation depending on clinical context."
+                })
+
+    # ─────────────────────────────────────────────────────────────
+    # Generate Follow-Up Investigation Recommendations
+    # ─────────────────────────────────────────────────────────────
+    follow_up_recommendations: List[Dict[str, Any]] = []
+
+    # Iron studies follow-up
+    if hb and hb < 12.0 and not iron and not ferritin:
+        follow_up_recommendations.append({
+            "test": "Serum Ferritin & Iron Studies",
+            "reason": "Low hemoglobin detected without iron markers available",
+            "supportingFinding": f"Hemoglobin: {hb} g/dL",
+            "question": "Helps determine if the anemia is due to iron deficiency, chronic disease, or another cause.",
+            "priority": "Recommended",
+            "clinicianDecision": True,
+        })
+    
+    # B12/Folate follow-up  
+    mcv_val = val_map.get("MCV")
+    b12 = val_map.get("Vitamin B12")
+    if mcv_val and mcv_val > 100 and not b12:
+        follow_up_recommendations.append({
+            "test": "Serum Vitamin B12 & Folate",
+            "reason": "Macrocytosis (elevated MCV) detected without B12/folate levels available",
+            "supportingFinding": f"MCV: {mcv_val} fL",
+            "question": "Helps identify if macrocytic anemia is caused by vitamin B12 or folate deficiency.",
+            "priority": "Recommended",
+            "clinicianDecision": True,
+        })
+
+    # Free T4 follow-up
+    if tsh is not None and (tsh > 4.5 or tsh < 0.4) and not ft4:
+        follow_up_recommendations.append({
+            "test": "Free T4 (Free Thyroxine)",
+            "reason": "Abnormal TSH detected without Free T4 available",
+            "supportingFinding": f"TSH: {tsh} mIU/L",
+            "question": "Confirms whether thyroid dysfunction is overt or subclinical.",
+            "priority": "Recommended",
+            "clinicianDecision": True,
+        })
+
+    # Peripheral smear follow-up
+    rdw = val_map.get("RDW")
+    if hb and hb < 10.0 and mcv_val and (mcv_val < 75 or mcv_val > 105):
+        follow_up_recommendations.append({
+            "test": "Peripheral Blood Smear",
+            "reason": "Significant anemia with abnormal red cell size",
+            "supportingFinding": f"Hemoglobin: {hb} g/dL, MCV: {mcv_val} fL",
+            "question": "Allows visual assessment of red cell morphology to refine the anemia classification.",
+            "priority": "Consider discussing with physician",
+            "clinicianDecision": True,
+        })
+
+    # Repeat fasting glucose
+    if fbs and 100 <= fbs < 126 and not hba1c:
+        follow_up_recommendations.append({
+            "test": "HbA1c (Glycated Hemoglobin)",
+            "reason": "Fasting glucose in prediabetic range without HbA1c available",
+            "supportingFinding": f"Fasting Glucose: {fbs} mg/dL",
+            "question": "Provides 3-month average glucose context to confirm or exclude prediabetes.",
+            "priority": "Recommended",
+            "clinicianDecision": True,
+        })
+
+    # Liver ultrasound suggestion
+    if (bili_total and bili_total > 2.0) or (alt and alt > 100):
+        follow_up_recommendations.append({
+            "test": "Abdominal Ultrasound (Liver & Biliary)",
+            "reason": "Significantly elevated bilirubin or liver enzymes",
+            "supportingFinding": f"Total Bilirubin: {bili_total} mg/dL" if bili_total and bili_total > 2.0 else f"ALT: {alt} U/L",
+            "question": "Evaluates liver structure, fatty infiltration, gallstones, and biliary obstruction.",
+            "priority": "Recommended",
+            "clinicianDecision": True,
+        })
+
+    # Kidney follow-up
+    if creat and creat > 1.5 and not egfr:
+        follow_up_recommendations.append({
+            "test": "eGFR (Estimated Glomerular Filtration Rate)",
+            "reason": "Elevated creatinine without eGFR available",
+            "supportingFinding": f"Creatinine: {creat} mg/dL",
+            "question": "Quantifies kidney filtration capacity and stages any impairment.",
+            "priority": "Recommended",
+            "clinicianDecision": True,
+        })
+
     # Calculate overall health risk score (0-100)
     abnormal_count = sum(1 for p in evaluated_params if p["isAbnormal"])
     critical_count = sum(1 for p in evaluated_params if p["isCritical"])
@@ -364,6 +506,7 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
 
     return {
         "conditions": conditions,
+        "followUpRecommendations": follow_up_recommendations,
         "totalEvaluated": total_evaluated,
         "abnormalCount": abnormal_count,
         "criticalCount": critical_count,
@@ -372,3 +515,4 @@ def analyze_blood_patterns(evaluated_params: List[Dict[str, Any]]) -> Dict[str, 
         "overallStatus": overall_status,
         "doctorConsultationRecommended": abnormal_count >= 2 or critical_count > 0 or (bili_total is not None and bili_total > 1.2)
     }
+
