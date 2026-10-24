@@ -1,6 +1,6 @@
 """
 Spandan AI - End-to-End API Integration Test Suite
-Validates health check, module detection, cardiac pipeline, skin pipeline,
+Validates health check, module detection, cardiac pipeline,
 blood report analysis, Grad-CAM overlays, and mandatory medical disclaimers.
 """
 
@@ -12,14 +12,13 @@ from fastapi.testclient import TestClient
 # Add backend directory to sys.path
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 from main import app, MEDICAL_DISCLAIMER
-from config import CARDIAC_CLASSES, SKIN_CLASSES
+from config import CARDIAC_CLASSES
 from modules.blood_reference_ranges import REFERENCE_RANGES
 
 client = TestClient(app)
 
 SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
 ECG_SAMPLE_PATH = SAMPLE_DIR / "sample_ecg.png"
-SKIN_SAMPLE_PATH = SAMPLE_DIR / "sample_skin.png"
 BLOOD_SAMPLE_PATH = SAMPLE_DIR / "sample_blood_report.png"
 
 
@@ -38,7 +37,6 @@ def test_health_check():
     data = response.json()
     assert data["status"] == "healthy"
     assert data["modules"]["cardiac"]["classesCount"] == len(CARDIAC_CLASSES)
-    assert data["modules"]["skin"]["classesCount"] == len(SKIN_CLASSES)
     assert data["modules"]["blood"]["parametersCount"] == len(REFERENCE_RANGES)
     assert data["disclaimer"] == MEDICAL_DISCLAIMER
 
@@ -50,13 +48,7 @@ def test_module_auto_detection():
     assert response.status_code == 200
     assert response.json()["detectedModule"] == "cardiac"
 
-    # 2. Test Skin detection
-    with open(SKIN_SAMPLE_PATH, "rb") as f:
-        response = client.post("/api/detect-module", files={"file": ("sample_skin.png", f, "image/png")})
-    assert response.status_code == 200
-    assert response.json()["detectedModule"] == "skin"
-
-    # 3. Test Blood Report detection
+    # 2. Test Blood Report detection
     with open(BLOOD_SAMPLE_PATH, "rb") as f:
         response = client.post("/api/detect-module", files={"file": ("sample_blood_report.png", f, "image/png")})
     assert response.status_code == 200
@@ -87,25 +79,6 @@ def test_cardiac_prediction_pipeline():
     assert data["disclaimer"] == MEDICAL_DISCLAIMER
 
 
-def test_skin_prediction_pipeline():
-    with open(SKIN_SAMPLE_PATH, "rb") as f:
-        response = client.post("/api/predict/skin", files={"file": ("sample_skin.png", f, "image/png")})
-
-    assert response.status_code == 200
-    data = response.json()
-
-    assert data["module"] == "skin"
-    assert "predictions" in data and len(data["predictions"]) > 0
-    assert "topCondition" in data
-    assert 0.0 <= data["topConfidence"] <= 1.0
-
-    seg = data["segmentationMetrics"]
-    assert "asymmetryIndex" in seg
-    assert "borderIrregularity" in seg
-    assert "estimatedDiameterPx" in seg
-
-    assert data["heatmapUrl"].startswith("data:image/jpeg;base64,")
-    assert data["disclaimer"] == MEDICAL_DISCLAIMER
 
 
 def test_blood_prediction_pipeline():

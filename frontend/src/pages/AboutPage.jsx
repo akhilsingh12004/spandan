@@ -8,7 +8,6 @@ import {
   Code2, 
   Eye,
   HeartPulse,
-  ScanEye,
   Layers,
   LineChart,
   Microscope,
@@ -35,7 +34,7 @@ export default function AboutPage() {
           </h1>
           <p className="text-body" style={{ fontSize: '1.25rem', maxWidth: '700px', margin: '0 auto' }}>
             An AI-powered multi-modal health diagnostic assistant combining
-            cardiac ECG analysis and dermatological skin disease prediction.
+            cardiac ECG analysis and routine blood test report analysis.
           </p>
         </motion.div>
 
@@ -194,89 +193,6 @@ export default function AboutPage() {
             </div>
           </motion.div>
 
-          {/* Skin Module */}
-          <motion.div
-            className="glass-card-static"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.1 }}
-          >
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '12px', 
-              marginBottom: '20px' 
-            }}>
-              <div style={{
-                width: '44px',
-                height: '44px',
-                borderRadius: 'var(--radius-md)',
-                background: 'rgba(6, 214, 160, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--accent-cyan)',
-              }}>
-                <ScanEye size={22} />
-              </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                <span className="text-gradient-skin">Skin Module</span>
-              </h3>
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                Pipeline
-              </h4>
-              <ol style={{ listStyle: 'none', padding: 0 }}>
-                {[
-                  'Image preprocessing (resize, normalize, artifact removal)',
-                  'Hair removal via morphological blackhat filtering',
-                  'Contrast enhancement & noise reduction',
-                  'Lesion segmentation & ABCD morphological features',
-                  'EfficientNet / ResNet feature extraction (29 classes)',
-                  'Dense layer classification with 2D Grad-CAM overlay',
-                ].map((step, i) => (
-                  <li key={i} style={{ 
-                    display: 'flex', 
-                    gap: '10px', 
-                    padding: '6px 0', 
-                    fontSize: '0.875rem', 
-                    color: 'var(--text-secondary)' 
-                  }}>
-                    <span style={{ 
-                      width: '20px', 
-                      height: '20px', 
-                      borderRadius: '50%', 
-                      background: 'rgba(6, 214, 160, 0.1)',
-                      color: 'var(--accent-cyan)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.6875rem',
-                      fontWeight: 600,
-                      flexShrink: 0,
-                    }}>
-                      {i + 1}
-                    </span>
-                    {step}
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            <div>
-              <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                Training Data
-              </h4>
-              <p className="text-small">
-                HAM10000, ISIC Archive, DermNet NZ, Fitzpatrick17k datasets.
-                Transfer learning with data augmentation and class weighting.
-              </p>
-            </div>
-          </motion.div>
-
           {/* Blood Test Report Module */}
           <motion.div
             className="glass-card-static"
@@ -367,7 +283,7 @@ export default function AboutPage() {
             { icon: <Eye size={24} />, title: 'Grad-CAM Explainability', desc: 'Visual heatmaps showing exactly which image regions influenced the prediction, enabling clinical interpretability.', color: 'var(--accent-purple)' },
             { icon: <Shield size={24} />, title: 'Rigorous Evaluation', desc: 'Per-class F1-score, confusion matrix, robustness testing with varied lighting, angles, and synthetic noise.', color: 'var(--accent-amber)' },
             { icon: <LineChart size={24} />, title: 'ECG Digitization', desc: 'Converts paper ECG images to numerical time-series with automatic R-peak, P-QRS-T detection.', color: 'var(--accent-rose)' },
-            { icon: <Microscope size={24} />, title: 'Lesion Segmentation', desc: 'Automated skin lesion boundary detection isolating regions of interest from surrounding healthy skin.', color: 'var(--accent-cyan)' },
+            { icon: <Microscope size={24} />, title: 'Biomarker Extraction', desc: 'Automated OCR extraction and intelligent classification across comprehensive adult blood panels.', color: 'var(--accent-cyan)' },
             { icon: <BookOpen size={24} />, title: 'Educational Purpose', desc: 'Designed as a decision-support tool for education and research, not as a replacement for clinical diagnosis.', color: 'var(--text-muted)' },
           ].map((item, i) => (
             <motion.div
@@ -404,11 +320,6 @@ export default function AboutPage() {
             <Link to="/cardiac" className="btn btn-cardiac btn-lg" id="about-cta-cardiac">
               <HeartPulse size={20} />
               Cardiac Analysis
-              <ChevronRight size={16} />
-            </Link>
-            <Link to="/skin" className="btn btn-skin btn-lg" id="about-cta-skin">
-              <ScanEye size={20} />
-              Skin Analysis
               <ChevronRight size={16} />
             </Link>
             <Link to="/blood" className="btn btn-blood btn-lg" id="about-cta-blood">

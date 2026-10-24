@@ -1,59 +1,58 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, X, Image as ImageIcon, Sparkles, FileText } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Upload, X, Image as ImageIcon, Camera, FolderOpen, FileText } from 'lucide-react'
 
 export default function ImageUploader({ 
   onImageSelect, 
-  variant = 'skin', 
+  variant = 'cardiac', 
   selectedImage,
   onRemove 
 }) {
-  const isCardiac = variant === 'cardiac'
   const isBlood = variant === 'blood'
+  const cameraInputRef = useRef(null)
 
-  const onDrop = useCallback((acceptedFiles) => {
-    if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0]
-      const isPdfFile = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+  const processFile = useCallback((file) => {
+    const isPdfFile = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 
-      if (isPdfFile) {
+    if (isPdfFile) {
+      onImageSelect({
+        file,
+        preview: null,
+        isPdf: true,
+        name: file.name,
+        size: file.size,
+      })
+    } else {
+      const reader = new FileReader()
+      reader.onload = () => {
         onImageSelect({
           file,
-          preview: null,
-          isPdf: true,
+          preview: reader.result,
+          isPdf: false,
           name: file.name,
           size: file.size,
         })
-      } else {
-        const reader = new FileReader()
-        reader.onload = () => {
-          onImageSelect({
-            file,
-            preview: reader.result,
-            isPdf: false,
-            name: file.name,
-            size: file.size,
-          })
-        }
-        reader.readAsDataURL(file)
       }
+      reader.readAsDataURL(file)
     }
   }, [onImageSelect])
 
+  const onDrop = useCallback((acceptedFiles) => {
+    if (acceptedFiles.length > 0) {
+      processFile(acceptedFiles[0])
+    }
+  }, [processFile])
+
   const loadSampleImage = async (e) => {
     e.stopPropagation()
-    const sampleFileName = isCardiac 
+    e.preventDefault()
+    const sampleFileName = variant === 'cardiac' 
       ? '/sample_ecg.png' 
-      : isBlood 
-      ? '/sample_blood_report.png' 
-      : '/sample_skin.png'
+      : '/sample_blood_report.png'
 
-    const displayName = isCardiac 
+    const displayName = variant === 'cardiac' 
       ? 'sample_ecg_rhythm_strip.png' 
-      : isBlood 
-      ? 'sample_blood_report.png' 
-      : 'sample_skin_lesion.png'
+      : 'sample_blood_report.png'
 
     try {
       const response = await fetch(sampleFileName)
@@ -84,12 +83,33 @@ export default function ImageUploader({
         'image/*': ['.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.webp'],
       }
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, open } = useDropzone({
     onDrop,
     accept: acceptedFormats,
     maxFiles: 1,
     multiple: false,
+    noClick: true,
+    noKeyboard: true,
   })
+
+  const handleCameraClick = (e) => {
+    e.stopPropagation()
+    if (cameraInputRef.current) {
+      cameraInputRef.current.click()
+    }
+  }
+
+  const handleCameraCapture = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      processFile(file)
+    }
+  }
+
+  const handleChooseFile = (e) => {
+    e.stopPropagation()
+    open()
+  }
 
   const formatSize = (bytes) => {
     if (bytes < 1024) return `${bytes} B`
@@ -97,185 +117,108 @@ export default function ImageUploader({
     return `${(bytes / 1048576).toFixed(1)} MB`
   }
 
-  const zoneClass = isCardiac 
-    ? 'upload-zone-cardiac' 
-    : isBlood 
-    ? 'upload-zone-blood' 
-    : ''
+  const sampleLabel = variant === 'cardiac'
+    ? 'Try with a sample ECG'
+    : 'Try with a sample blood report'
 
-  const btnClass = isCardiac 
-    ? 'btn-cardiac' 
-    : isBlood 
-    ? 'btn-blood' 
-    : 'btn-skin'
+  if (selectedImage) {
+    return (
+      <div className="preview-container" id="image-preview">
+        {selectedImage.isPdf ? (
+          <div className="pdf-preview-box">
+            <FileText size={48} />
+            <h4 style={{ fontSize: '1rem', fontWeight: 600, marginTop: '8px' }}>
+              PDF ready to analyse
+            </h4>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              We'll extract text and tables automatically
+            </p>
+          </div>
+        ) : (
+          <img 
+            src={selectedImage.preview} 
+            alt="Your uploaded file" 
+            className="preview-image"
+          />
+        )}
+        
+        <button 
+          className="preview-remove-btn" 
+          onClick={onRemove}
+          id="remove-image-btn"
+          aria-label="Remove file"
+        >
+          <X size={16} />
+        </button>
 
-  const titleText = isDragActive
-    ? 'Drop your file here'
-    : isCardiac
-    ? 'Upload ECG Image'
-    : isBlood
-    ? 'Upload Blood Test Report'
-    : 'Upload Skin Photo'
-
-  const subtitleText = isCardiac
-    ? 'Upload a photo or scan of an ECG strip.'
-    : isBlood
-    ? 'Upload a photo, scan, or digital PDF of your blood test report (CBC, Lipid, LFT, KFT, etc.).'
-    : 'Upload a clear photo of the affected skin area.'
-
-  const formatBadges = isBlood 
-    ? ['PDF', 'PNG', 'JPG', 'JPEG', 'TIFF'] 
-    : ['PNG', 'JPG', 'JPEG', 'BMP', 'TIFF', 'WebP']
-
-  const sampleButtonLabel = isCardiac
-    ? 'Try with Sample ECG Strip'
-    : isBlood
-    ? 'Try with Sample Blood Report'
-    : 'Try with Sample Skin Lesion'
+        <div className="preview-file-info">
+          <ImageIcon size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p className="file-name">{selectedImage.name}</p>
+            <p className="file-size">{formatSize(selectedImage.size)}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-      <AnimatePresence mode="wait">
-        {!selectedImage ? (
-          <motion.div
-            key="upload"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div
-              {...getRootProps()}
-              className={`upload-zone ${zoneClass} ${isDragActive ? 'drag-active' : ''}`}
-              id="image-upload-zone"
-            >
-              <input {...getInputProps()} id="image-upload-input" />
-              
-              <div className="upload-icon">
-                <Upload size={32} />
-              </div>
-              
-              <h3 className="upload-title">{titleText}</h3>
-              
-              <p className="upload-subtitle" style={{ maxWidth: '480px', margin: '0 auto 16px' }}>
-                {subtitleText} Tap anywhere to select a file from your device, or drag & drop it here.
-              </p>
+    <div {...getRootProps()} id="image-upload-zone">
+      <input {...getInputProps()} id="image-upload-input" />
+      {/* Hidden camera input for mobile */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: 'none' }}
+        onChange={handleCameraCapture}
+      />
 
-              <div className="upload-formats" style={{ marginBottom: '20px' }}>
-                {formatBadges.map(fmt => (
-                  <span key={fmt} className="format-badge">{fmt}</span>
-                ))}
-              </div>
+      <div className="upload-zone">
+        <div className="upload-zone-icon">
+          <Upload size={24} />
+        </div>
+        
+        <h3 className="upload-zone-title">
+          {isBlood ? 'Upload blood test report' : 'Upload ECG image'}
+        </h3>
+        <p className="upload-zone-subtitle">
+          {isBlood
+            ? 'Photo, scan, or PDF of your blood test report.'
+            : 'Photo or scan of your ECG paper strip.'}
+        </p>
 
-              {/* Instant Demo Sample Box for Beginners */}
-              <div 
-                style={{
-                  marginTop: '10px',
-                  padding: '14px 18px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px dashed var(--border-color)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  Don't have your own medical file right now?
-                </span>
-                <button
-                  type="button"
-                  onClick={loadSampleImage}
-                  className={`btn ${btnClass} btn-sm`}
-                  id="load-sample-btn"
-                  style={{
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-                    fontSize: '0.8125rem',
-                    fontWeight: 600
-                  }}
-                >
-                  <Sparkles size={14} />
-                  {sampleButtonLabel}
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="preview"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.3 }}
+        <div className="upload-actions">
+          <button
+            type="button"
+            onClick={handleCameraClick}
+            className="btn btn-primary btn-full"
+            id="take-photo-btn"
           >
-            <div className="preview-container" id="image-preview">
-              {selectedImage.isPdf ? (
-                <div style={{
-                  padding: '48px 24px',
-                  textAlign: 'center',
-                  background: 'rgba(239, 68, 68, 0.05)',
-                  borderRadius: 'var(--radius-lg)',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
-                  margin: '12px auto',
-                  maxWidth: '380px'
-                }}>
-                  <FileText size={56} style={{ color: 'var(--accent-rose)', margin: '0 auto 16px' }} />
-                  <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    PDF Document Ready for OCR
-                  </h4>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '6px' }}>
-                    Digital lab tables and text will be parsed
-                  </p>
-                </div>
-              ) : (
-                <img 
-                  src={selectedImage.preview} 
-                  alt="Upload preview" 
-                  className="preview-image"
-                  style={{ maxWidth: '100%', maxHeight: '450px', objectFit: 'contain' }}
-                />
-              )}
-              <div className="preview-overlay">
-                <button 
-                  className="preview-remove-btn" 
-                  onClick={onRemove}
-                  id="remove-image-btn"
-                  aria-label="Remove image"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '12px', 
-                marginTop: '16px',
-                padding: '12px 16px',
-                borderRadius: 'var(--radius-md)',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid var(--border-color)',
-              }}>
-                <ImageIcon size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ 
-                    fontSize: '0.875rem', 
-                    fontWeight: 500, 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis', 
-                    whiteSpace: 'nowrap' 
-                  }}>
-                    {selectedImage.name}
-                  </p>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {formatSize(selectedImage.size)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Camera size={18} />
+            Take a photo
+          </button>
+          <button
+            type="button"
+            onClick={handleChooseFile}
+            className="btn btn-secondary btn-full"
+            id="choose-file-btn"
+          >
+            <FolderOpen size={18} />
+            Choose from gallery or files
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={loadSampleImage}
+          className="upload-sample-link"
+          id="load-sample-btn"
+        >
+          {sampleLabel}
+        </button>
+      </div>
     </div>
   )
 }

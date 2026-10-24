@@ -1,0 +1,333 @@
+// Spandan AI — Plain language translations (English & Hindi)
+// Class 8 reading level, no technical jargon.
+
+export const translations = {
+  en: {
+    // Header & Navigation
+    appName: 'Spandan AI',
+    help: 'Help & Guide',
+    langToggle: 'हिंदी',
+
+    // Home Screen
+    homeTitle: 'Understand your health report',
+    homeSubtitle: "Upload your ECG or blood test and we'll explain it in simple words.",
+    ecgCardTitle: 'Check my ECG (heart report)',
+    ecgCardDesc: 'Upload a paper ECG strip photo to check rhythm and rate',
+    bloodCardTitle: 'Check my blood test',
+    bloodCardDesc: 'Upload a lab report or photo to check your numbers',
+    notSureGuide: 'Not sure which to choose? Read the quick guide',
+    homeDisclaimer: 'This tool explains reports. It does not replace your doctor.',
+
+    // Consent
+    consentIntro: 'We only look at your report to explain the numbers to you. Your report is processed in real time and is never saved or shared with anyone.',
+    consentCheckbox: 'I agree to have my report analysed.',
+
+    // ECG Flow
+    ecgTitle: 'Check my ECG',
+    ecgDesc: 'Upload a clear photo of your ECG paper strip. We will check your heart rate and rhythm and explain what it means in simple words.',
+    ecgTip: 'Place the paper flat in good light so all lines are visible.',
+    ecgTakePhoto: 'Take a photo',
+    ecgChooseFile: 'Choose from gallery or files',
+    ecgTrySample: 'No strip with you? Try with a sample ECG',
+    ecgAnalyzeBtn: 'See my results',
+    ecgChecking: 'Checking your heart report...',
+    ecgCheckingDesc: 'Please wait a moment while we read your ECG strip.',
+
+    // Blood Test Flow
+    bloodStep1Title: 'Add your blood test report',
+    bloodStep1Desc: 'Take a photo or upload a document (PDF or image) of your blood test.',
+    bloodTakePhoto: 'Take a photo',
+    bloodChooseFile: 'Choose from gallery or files',
+    bloodTypeNumbersLink: 'No report file? Type your numbers instead',
+    bloodUploadReportLink: 'Have a report file? Upload photo or PDF instead',
+    bloodTrySample: 'Want to try first? Use a sample report',
+
+    bloodStep2Title: 'Tell us a little about you',
+    bloodStep2Desc: 'This helps us explain what the numbers mean for your age and body. All questions are optional.',
+    skipStep: 'Skip this step',
+    ageLabel: 'How old are you?',
+    agePlaceholder: 'e.g. 45',
+    sexLabel: 'Sex',
+    male: 'Male',
+    female: 'Female',
+    fastingLabel: 'Did you fast (empty stomach) before the test?',
+    fastingYes: 'Yes (8+ hours)',
+    fastingNo: 'No (ate food)',
+    fastingNotSure: 'Not sure',
+    pregnantLabel: 'Are you currently pregnant?',
+    yes: 'Yes',
+    no: 'No',
+    troublesLabel: 'Do you feel any of these troubles?',
+    troubleTired: 'Feeling very tired or weak',
+    troubleBreath: 'Shortness of breath',
+    troubleChest: 'Chest heaviness or pain',
+    troubleDizzy: 'Dizziness or lightheadedness',
+    troubleThirst: 'Frequent thirst or urination',
+    troubleSwelling: 'Swelling in feet or legs',
+    medsLabel: 'Medicines you take regularly (optional)',
+    medsPlaceholder: 'e.g. Blood pressure tablets, thyroid medicine',
+    continueBtn: 'Continue',
+
+    // Blood Review Step
+    bloodReviewTitle: 'Does this match your report?',
+    bloodReviewDesc: 'Please check that the numbers below match your printed report. You can change any number or add another test.',
+    testNameHeader: 'Test name',
+    valueHeader: 'Your number',
+    normalRangeHeader: 'Normal range',
+    addNewTest: '+ Add another test',
+    seeMyResults: 'See my results',
+
+    // Results Common
+    resultsTitle: 'Your report explanation',
+    pleaseSeeDoctor: 'Please see a doctor soon',
+    pleaseSeeDoctorDesc: 'One or more of your results need medical care. Please contact a doctor or clinic today.',
+    whatYouCanDo: 'What you can do',
+    questionsForDoctor: 'Questions to ask your doctor',
+    saveAsPdf: 'Save as PDF',
+    share: 'Share',
+    checkAnother: 'Check another report',
+    back: 'Back',
+
+    // Statuses
+    normal: 'Normal',
+    high: 'High',
+    low: 'Low',
+    needsAttention: 'Needs attention',
+  },
+  hi: {
+    // Header & Navigation
+    appName: 'स्पंदन AI',
+    help: 'मदद और गाइड',
+    langToggle: 'English',
+
+    // Home Screen
+    homeTitle: 'अपनी सेहत की रिपोर्ट समझें',
+    homeSubtitle: 'अपनी ईसीजी (ECG) या खून की जांच रिपोर्ट जोड़ें और आसान शब्दों में समझें।',
+    ecgCardTitle: 'ईसीजी जांचें (दिल की रिपोर्ट)',
+    ecgCardDesc: 'दिल की धड़कन और ताल समझने के लिए ईसीजी की फोटो जोड़ें',
+    bloodCardTitle: 'खून की जांच रिपोर्ट जांचें',
+    bloodCardDesc: 'अपने टेस्ट नंबर समझने के लिए लैब रिपोर्ट या फोटो जोड़ें',
+    notSureGuide: 'समझ नहीं आ रहा क्या चुनें? छोटी गाइड पढ़ें',
+    homeDisclaimer: 'यह टूल रिपोर्ट समझाने के लिए है। यह डॉक्टर की जगह नहीं ले सकता।',
+
+    // Consent
+    consentIntro: 'हम आपकी रिपोर्ट केवल आपको समझाने के लिए पढ़ते हैं। आपकी रिपोर्ट तुरंत जांची जाती है और कहीं भी स्टोर नहीं की जाती।',
+    consentCheckbox: 'मैं अपनी रिपोर्ट की जांच करवाने के लिए सहमत हूँ।',
+
+    // ECG Flow
+    ecgTitle: 'मेरी ईसीजी जांचें',
+    ecgDesc: 'अपनी ईसीजी पर्ची की साफ़ फोटो जोड़ें। हम आपके दिल की धड़कन और ताल की जांच कर आसान शब्दों में समझाएंगे।',
+    ecgTip: 'पर्ची को सीधी रोशनी में सपाट रखकर फोटो खींचें ताकि सभी रेखाएं साफ़ दिखें।',
+    ecgTakePhoto: 'फोटो खींचें',
+    ecgChooseFile: 'गैलरी या फ़ाइलों से चुनें',
+    ecgTrySample: 'पर्ची नहीं है? सैंपल ईसीजी से आज़माएं',
+    ecgAnalyzeBtn: 'मेरे नतीजे देखें',
+    ecgChecking: 'आपकी रिपोर्ट जांची जा रही है...',
+    ecgCheckingDesc: 'कृपया थोड़ी देर रुकें, हम आपकी ईसीजी पढ़ रहे हैं।',
+
+    // Blood Test Flow
+    bloodStep1Title: 'अपनी खून की जांच रिपोर्ट जोड़ें',
+    bloodStep1Desc: 'अपनी खून की रिपोर्ट की फोटो या पीडीएफ़ (PDF) फ़ाइल जोड़ें।',
+    bloodTakePhoto: 'फोटो खींचें',
+    bloodChooseFile: 'गैलरी या फ़ाइलों से चुनें',
+    bloodTypeNumbersLink: 'रिपोर्ट फ़ाइल नहीं है? खुद नंबर लिखें',
+    bloodUploadReportLink: 'फ़ाइल है? फोटो या पीडीएफ़ जोड़ें',
+    bloodTrySample: 'पहले चलाकर देखना चाहते हैं? सैंपल रिपोर्ट आज़माएं',
+
+    bloodStep2Title: 'अपने बारे में थोड़ा बताएं',
+    bloodStep2Desc: 'इससे आपकी उम्र और शरीर के अनुसार नतीजे समझना आसान होता है। सभी सवाल ऐच्छिक (optional) हैं।',
+    skipStep: 'यह कदम छोड़ें',
+    ageLabel: 'आपकी उम्र क्या है?',
+    agePlaceholder: 'जैसे 45',
+    sexLabel: 'लिंग',
+    male: 'पुरुष (Male)',
+    female: 'महिला (Female)',
+    fastingLabel: 'क्या टेस्ट से पहले आप खाली पेट थे?',
+    fastingYes: 'हाँ (8 घंटे से भूखे)',
+    fastingNo: 'नहीं (खाना खाया था)',
+    fastingNotSure: 'पक्का नहीं पता',
+    pregnantLabel: 'क्या आप गर्भवती (pregnant) हैं?',
+    yes: 'हाँ',
+    no: 'नहीं',
+    troublesLabel: 'क्या आपको इनमें से कोई परेशानी महसूस होती है?',
+    troubleTired: 'बहुत थकान या कमज़ोरी',
+    troubleBreath: 'सांस फूलना',
+    troubleChest: 'छाती में भारीपन या दर्द',
+    troubleDizzy: 'चक्कर आना',
+    troubleThirst: 'ज़्यादा प्यास या बार-बार पेशाब',
+    troubleSwelling: 'पैरों में सूजन',
+    medsLabel: 'नियमित लेने वाली दवाइयां (ऐच्छिक)',
+    medsPlaceholder: 'जैसे बीपी की गोली, थायरॉइड की दवा',
+    continueBtn: 'आगे बढ़ें',
+
+    // Blood Review Step
+    bloodReviewTitle: 'क्या यह आपकी रिपोर्ट से मिलता है?',
+    bloodReviewDesc: 'कृपया मिला लें कि नीचे दिए गए नंबर आपकी लैब रिपोर्ट से मेल खाते हैं। आप कोई भी नंबर बदल सकते हैं।',
+    testNameHeader: 'जांच का नाम',
+    valueHeader: 'आपका नंबर',
+    normalRangeHeader: 'सामान्य सीमा (Normal)',
+    addNewTest: '+ कोई अन्य जांच जोड़ें',
+    seeMyResults: 'मेरे नतीजे देखें',
+
+    // Results Common
+    resultsTitle: 'आपकी रिपोर्ट का विवरण',
+    pleaseSeeDoctor: 'कृपया जल्द ही डॉक्टर को दिखाएं',
+    pleaseSeeDoctorDesc: 'आपकी एक या अधिक जांचों में तुरंत ध्यान देने की ज़रूरत है। कृपया अपने डॉक्टर से संपर्क करें।',
+    whatYouCanDo: 'आप क्या कर सकते हैं',
+    questionsForDoctor: 'डॉक्टर से पूछने लायक सवाल',
+    saveAsPdf: 'पीडीएफ़ (PDF) सेव करें',
+    share: 'शेयर करें',
+    checkAnother: 'दूसरी रिपोर्ट जांचें',
+    back: 'वापस',
+
+    // Statuses
+    normal: 'सामान्य (Normal)',
+    high: 'अधिक (High)',
+    low: 'कम (Low)',
+    needsAttention: 'ध्यान देने योग्य',
+  }
+}
+
+// Plain-language medical names for common tests
+export const TEST_PLAIN_NAMES = {
+  'Hemoglobin': {
+    name: 'Haemoglobin (blood count)',
+    hiName: 'हीमोग्लोबिन (खून का स्तर)',
+    unit: 'g/dL',
+    description: 'Carries oxygen throughout your body to give you strength and energy.',
+    hiDescription: 'शरीर के सभी अंगों तक ऑक्सीजन पहुंचाता है और ऊर्जा देता है।',
+  },
+  'RBC Count': {
+    name: 'Red Blood Cells',
+    hiName: 'लाल रक्त कोशिकाएं (RBC)',
+    unit: 'M/mcL',
+    description: 'Cells that carry oxygen from your lungs to the rest of your body.',
+    hiDescription: 'फेफड़ों से पूरे शरीर तक ऑक्सीजन पहुंचाने वाली कोशिकाएं।',
+  },
+  'WBC Count': {
+    name: 'White Blood Cells (germ fighters)',
+    hiName: 'सफेद रक्त कोशिकाएं (रोग प्रतिरोधक)',
+    unit: '/mcL',
+    description: 'Cells that defend your body against germs, viruses, and infections.',
+    hiDescription: 'बीमारियों और कीटाणुओं से लड़ने वाली सुरक्षा कोशिकाएं।',
+  },
+  'Platelet Count': {
+    name: 'Platelets (blood clotters)',
+    hiName: 'प्लेटलेट्स (खून थक्का कण)',
+    unit: '/mcL',
+    description: 'Tiny cells that seal cuts and stop bleeding when you get injured.',
+    hiDescription: 'चोट लगने पर खून का बहना रोकने में मदद करते हैं।',
+  },
+  'Fasting Blood Glucose': {
+    name: 'Fasting Blood Sugar',
+    hiName: 'खाली पेट शुगर (ग्लूकोज)',
+    unit: 'mg/dL',
+    description: 'The amount of sugar in your blood after an overnight fast.',
+    hiDescription: 'रात भर खाली पेट रहने के बाद खून में मिठास (शुगर) का स्तर।',
+  },
+  'HbA1c': {
+    name: '3-Month Average Blood Sugar',
+    hiName: 'एचबीए1सी (3 महीने की औसत शुगर)',
+    unit: '%',
+    description: 'Shows your average blood sugar over the last two to three months.',
+    hiDescription: 'पिछले 2 से 3 महीनों में आपके शुगर का औसत स्तर दिखाता है।',
+  },
+  'Total Cholesterol': {
+    name: 'Total Blood Fat (Cholesterol)',
+    hiName: 'कुल कोलेस्ट्रॉल (खून की चर्बी)',
+    unit: 'mg/dL',
+    description: 'Total amount of fats circulating in your bloodstream.',
+    hiDescription: 'खून में मौजूद कुल वसा (फैट) की मात्रा।',
+  },
+  'LDL Cholesterol': {
+    name: 'Bad Cholesterol (LDL)',
+    hiName: 'हानिकारक कोलेस्ट्रॉल (LDL)',
+    unit: 'mg/dL',
+    description: 'Fat that can slowly build up inside your heart and blood vessels.',
+    hiDescription: 'यह चर्बी नसों में जम सकती है, इसे कम रखना अच्छा होता है।',
+  },
+  'HDL Cholesterol': {
+    name: 'Good Cholesterol (HDL)',
+    hiName: 'सुरक्षात्मक कोलेस्ट्रॉल (HDL)',
+    unit: 'mg/dL',
+    description: 'Helpful fat that clears excess cholesterol back to your liver.',
+    hiDescription: 'यह अच्छी चर्बी नसों को साफ़ रखने में मदद करती है।',
+  },
+  'Triglycerides': {
+    name: 'Triglycerides (stored fats)',
+    hiName: 'ट्राइग्लिसराइड्स (भंडारित चर्बी)',
+    unit: 'mg/dL',
+    description: 'Unused calories converted into fats from oily food and sweets.',
+    hiDescription: 'मीठे और तैलीय भोजन से बनने वाला फैट।',
+  },
+  'Creatinine': {
+    name: 'Creatinine (kidney waste filter)',
+    hiName: 'क्रिएटिनिन (गुर्दे की कार्यक्षमता)',
+    unit: 'mg/dL',
+    description: 'Waste product filtered out by kidneys; shows how well kidneys clean your blood.',
+    hiDescription: 'गुर्दे (किडनी) खून को कितना साफ़ कर रहे हैं, यह बताता है।',
+  },
+  'BUN (Blood Urea Nitrogen)': {
+    name: 'Urea (kidney filter check)',
+    hiName: 'ब्लड यूरिया (किडनी जांच)',
+    unit: 'mg/dL',
+    description: 'Waste from digested protein that healthy kidneys remove from blood.',
+    hiDescription: 'प्रोटीन पचने के बाद बचा हुआ अपशिष्ट जिसे किडनी बाहर निकालती है।',
+  },
+  'Total Bilirubin': {
+    name: 'Bilirubin (liver health / jaundice marker)',
+    hiName: 'बिलीरुबिन (लिवर व पीलिया जांच)',
+    unit: 'mg/dL',
+    description: 'Yellow substance from old blood cells. High levels cause yellowish eyes or skin.',
+    hiDescription: 'पुराने खून से बनने वाला पीला तत्व। अधिक होने पर पीलिया हो सकता है।',
+  },
+  'ALT (SGPT)': {
+    name: 'ALT (liver enzyme)',
+    hiName: 'एएलटी (लिवर एंजाइम)',
+    unit: 'U/L',
+    description: 'Liver enzyme that rises when liver cells are irritated or stressed.',
+    hiDescription: 'लिवर पर दबाव या सूजन होने पर यह एंजाइम बढ़ जाता है।',
+  },
+  'AST (SGOT)': {
+    name: 'AST (liver & muscle enzyme)',
+    hiName: 'एएसटी (लिवर एंजाइम)',
+    unit: 'U/L',
+    description: 'Enzyme found in liver and muscles; marks general tissue strain.',
+    hiDescription: 'लिवर और मांसपेशियों में पाया जाने वाला एंजाइम।',
+  },
+  'Alkaline Phosphatase (ALP)': {
+    name: 'ALP (bile ducts & bone check)',
+    hiName: 'एएलपी (लिवर व पित्त वाहिनी)',
+    unit: 'U/L',
+    description: 'Enzyme linked to liver bile ducts and bone turnover.',
+    hiDescription: 'पित्त नली और हड्डियों की स्थिति से जुड़ा एंजाइम।',
+  },
+  'TSH': {
+    name: 'TSH (thyroid energy control)',
+    hiName: 'टीएसएच (थायरॉइड हार्मोन)',
+    unit: 'mIU/L',
+    description: 'Hormone that controls your body energy, weight, and metabolism speed.',
+    hiDescription: 'शरीर की ऊर्जा, वज़न और फुर्ती को नियंत्रित करने वाला हार्मोन।',
+  },
+  'Vitamin D (25-OH)': {
+    name: 'Vitamin D (sunshine bone vitamin)',
+    hiName: 'विटामिन डी (हड्डियों की ताकत)',
+    unit: 'ng/mL',
+    description: 'Vital nutrient for bone strength, calcium absorption, and daily immunity.',
+    hiDescription: 'हड्डियों को मज़बूत रखने और धूप से मिलने वाला ज़रूरी विटामिन।',
+  },
+  'Vitamin B12': {
+    name: 'Vitamin B12 (nerve & blood health)',
+    hiName: 'विटामिन बी12 (नसों व खून के लिए)',
+    unit: 'pg/mL',
+    description: 'Essential for nerve strength, brain sharpness, and red blood cells.',
+    hiDescription: 'नसों की ताकत, याददाश्त और खून बनाने के लिए ज़रूरी विटामिन।',
+  },
+  'C-Reactive Protein (CRP)': {
+    name: 'CRP (body swelling/irritation check)',
+    hiName: 'सीआरपी (शरीर में सूजन का संकेत)',
+    unit: 'mg/L',
+    description: 'General marker that rises when there is inflammation or swelling in your body.',
+    hiDescription: 'शरीर में किसी भी अंदरूनी सूजन या संक्रमण का संकेत देता है।',
+  }
+}

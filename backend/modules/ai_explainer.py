@@ -1,6 +1,6 @@
 """
 Spandan AI - Intelligent Clinical Report Explainer & AI Medical Assistant
-Analyzes full diagnostic reports (Blood Tests, Cardiac ECG, Dermatological Skin)
+Analyzes full diagnostic reports (Blood Tests, Cardiac ECG)
 and synthesizes patient-friendly, clinically accurate explanations, organ breakdowns,
 dietary prescriptions, doctor discussion guides, and interactive contextual Q&A.
 """
@@ -474,86 +474,6 @@ def generate_cardiac_report_explanation(report_data: Dict[str, Any]) -> Dict[str
     }
 
 
-def generate_skin_report_explanation(report_data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Synthesizes clinical explanation for Dermatological Skin Lesion Reports.
-    """
-    top_condition = report_data.get("topCondition", "Melanocytic Nevus (Mole)")
-    confidence = report_data.get("topConfidence", 0.75)
-    seg_metrics = report_data.get("segmentationMetrics", {})
-    requires_specialist = report_data.get("requiresSpecialistReview", False)
-    conf_pct = round(confidence * 100, 1)
-
-    is_benign = "Nevus" in top_condition or "Normal" in top_condition or "Benign" in top_condition
-
-    headline = f"Dermatological Assessment: {top_condition} ({conf_pct}% Confidence)"
-    executive_summary = (
-        f"Deep transfer-learning convolutional analysis classifies the analyzed skin lesion as {top_condition} with {conf_pct}% confidence. "
-        f"Morphological ABCD evaluation indicates an Asymmetry Index of {seg_metrics.get('asymmetryIndex', 0.2):.2f} "
-        f"and Border Irregularity score of {seg_metrics.get('borderIrregularity', 0.25):.2f}. "
-        "The Grad-CAM attribution overlay confirms model focus is centered directly on internal pigmentary networks. "
-        f"{'⚠️ Clinical dermoscopy and in-person biopsy evaluation by a licensed dermatologist is strongly recommended.' if requires_specialist else 'Monitor for any progressive changes in size, border, or coloration.'}"
-    )
-
-    organ_systems = [
-        {
-            "id": "integumentary",
-            "name": "Epidermal & Dermal Architecture",
-            "icon": "ScanEye",
-            "status": "OPTIMAL" if is_benign else "ATTENTION_NEEDED",
-            "summary": f"Lesion classification: {top_condition}. Asymmetry: {seg_metrics.get('asymmetryIndex', 'Low')}.",
-            "relevantMarkers": [
-                f"Asymmetry Index: {seg_metrics.get('asymmetryIndex', 0.18):.2f}",
-                f"Border Score: {seg_metrics.get('borderIrregularity', 0.22):.2f}",
-                f"Estimated Diameter: {seg_metrics.get('estimatedDiameterPx', 78)} px"
-            ],
-            "physiologicalMechanism": "Melanocytes produce melanin pigment to shield basal keratinocyte DNA against ultraviolet radiation damage."
-        }
-    ]
-
-    doctor_questions = [
-        f"Does this lesion warrant formal epiluminescence dermoscopy or an excision biopsy?",
-        "How frequently should full-body photographic skin surveillance be scheduled based on my skin type?",
-        "Are there specific signs of evolution (evolutionary change in color, diameter, or border) I should photograph?"
-    ]
-
-    return {
-        "module": "skin",
-        "headline": headline,
-        "healthScore": 90 if is_benign else 60,
-        "acuityLevel": "High" if requires_specialist else "Moderate" if not is_benign else "Low",
-        "executiveSummary": executive_summary,
-        "organSystems": organ_systems,
-        "lifestylePrescription": {
-            "nutrition": [
-                "Consume dietary polyphenols, carotenoids (carrots, tomatoes, sweet potatoes), and Vitamin E to protect skin barrier lipids against photo-oxidation."
-            ],
-            "exercise": [
-                "Enjoy outdoor exercise during early mornings or late afternoons to avoid peak UV index hours (10 AM to 4 PM)."
-            ],
-            "supplements": [
-                "Discuss oral Polypodium leucotomos extract or Nicotinamide (Vitamin B3) with your dermatologist for photo-protective cellular DNA defense."
-            ],
-            "habits": [
-                "Apply broad-spectrum SPF 30+ mineral or organic sunscreen daily, reapplying every 2 hours when exposed to direct sun.",
-                "Practice monthly self-skin exams utilizing the clinical ABCDE rule (Asymmetry, Border, Color, Diameter, Evolving)."
-            ]
-        },
-        "doctorChecklist": {
-            "questions": doctor_questions,
-            "recommendedSpecialists": ["Dermatologist", "Dermato-Oncologist"],
-            "followUpTimeline": "Within 1 to 2 weeks" if requires_specialist else "Routine annual skin checkup"
-        },
-        "redFlags": [
-            "Rapid lesion enlargement, darkening, or spontaneous bleeding without trauma",
-            "Emergence of notched, scalloped borders or multiple colors (black, blue, red, white)",
-            "A new mole that looks distinctly different from all your other moles ('ugly duckling sign')"
-        ],
-        "readingLevel": "standard",
-        "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S")
-    }
-
-
 def determine_specialists(conditions: List[Dict[str, Any]], abnormal_params: List[Dict[str, Any]]) -> List[str]:
     """Determines recommended clinical specialists based on findings."""
     specialists = set()
@@ -591,8 +511,6 @@ def generate_report_explanation(
     mod = module.lower()
     if mod == "cardiac":
         return generate_cardiac_report_explanation(report_data)
-    elif mod == "skin":
-        return generate_skin_report_explanation(report_data)
     else:
         # If blood report already has an aiExplanation generated by blood_ai_layer, reuse it
         existing_exp = report_data.get("aiExplanation")
@@ -650,18 +568,12 @@ def chat_with_report_ai(
                     "which is why you might feel extra tired. It's nothing to be scared of, but we need to give your body "
                     "the right fuel (like iron, vegetables, and good sleep) to tune up those gauges!"
                 )
-        elif mod == "cardiac":
+        else:
             reply = (
                 "Your heart is like a metronome or music drummer that plays a steady beat. "
                 f"The AI checked your electrical song and found a rhythm called '{report_data.get('topCondition')}'. "
                 "Most of the time, simple things like caffeine, stress, or electrolytes can change the song tempo. "
                 "Your doctor will take a quick listen with their stethoscope to make sure your beat is solid!"
-            )
-        else:
-            reply = (
-                "Think of your skin like an artist's canvas. The AI looked at the shape, borders, and colors of your spot. "
-                f"It thinks this spot is '{report_data.get('topCondition')}'. The best thing to do is have a skin doctor "
-                "look at it through their special magnifying glass to confirm it's safe!"
             )
         suggestions = ["What food should I eat to fix this?", "Are any of these numbers dangerous?", "What should I ask my doctor?"]
         return {"reply": reply, "followUpSuggestions": suggestions}

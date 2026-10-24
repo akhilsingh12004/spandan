@@ -1,6 +1,6 @@
 """
 Spandan AI - Full-Stack Multi-Modal Health Diagnostic API
-FastAPI Backend serving Cardiac Disease Prediction & Skin Disease Prediction Modules
+FastAPI Backend serving Cardiac Disease Prediction & Blood Report Analysis Modules
 """
 
 import io
@@ -14,13 +14,10 @@ from fastapi import FastAPI, File, UploadFile, Form, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from config import CARDIAC_CLASSES, SKIN_CLASSES
+from config import CARDIAC_CLASSES
 from modules.cardiac_processor import process_ecg_image
 from modules.cardiac_model import cardiac_engine
-from modules.skin_processor import process_skin_image
-from modules.skin_model import skin_engine
 from modules.explainability import (
-    generate_skin_gradcam_overlay,
     generate_ecg_gradcam_visualization,
 )
 from modules.blood_processor import process_blood_report, extract_parameters_from_report
@@ -46,7 +43,7 @@ MEDICAL_DISCLAIMER = (
 
 app = FastAPI(
     title="Spandan AI - Health Diagnostic Assistant API",
-    description="Multi-modal AI platform for Cardiac (ECG), Dermatological (Skin), and Routine Blood Test Report diagnostics.",
+    description="Multi-modal AI platform for Cardiac (ECG) and Routine Blood Test Report diagnostics.",
     version="1.0.0",
 )
 
@@ -67,14 +64,12 @@ def root():
         "status": "online",
         "modalities": [
             "Module 1: Cardiac Disease Prediction (ECG)",
-            "Module 2: Skin Disease Prediction (Photo)",
-            "Module 3: Blood Test Report Analysis (Lab Image / PDF)",
-            "Module 4: AI Clinical Report Explainer & Conversational Assistant",
+            "Module 2: Blood Test Report Analysis (Lab Image / PDF)",
+            "Module 3: AI Clinical Report Explainer & Conversational Assistant",
         ],
         "endpoints": [
             "/api/health",
             "/api/predict/cardiac",
-            "/api/predict/skin",
             "/api/predict/blood",
             "/api/blood/reference-ranges",
             "/api/detect-module",
@@ -97,10 +92,6 @@ def health_check():
             "cardiac": {
                 "loaded": cardiac_engine.model is not None,
                 "classesCount": len(CARDIAC_CLASSES),
-            },
-            "skin": {
-                "loaded": skin_engine.model is not None,
-                "classesCount": len(SKIN_CLASSES),
             },
             "blood": {
                 "loaded": True,
@@ -187,67 +178,6 @@ async def predict_cardiac_endpoint(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Cardiac processing error: {str(e)}")
 
 
-@app.post("/api/predict/skin")
-async def predict_skin_endpoint(file: UploadFile = File(...)):
-    """
-    Predicts dermatological conditions from an uploaded skin photo:
-    1. Preprocesses image: DullRazor hair removal & CLAHE contrast enhancement
-    2. Automated lesion segmentation & ABCD morphological analysis
-    3. Runs transfer learning CNN model inference
-    4. Generates 2D Grad-CAM heatmap overlay
-    """
-    start_total = time.time()
-    try:
-        contents = await file.read()
-        if len(contents) == 0:
-            raise HTTPException(status_code=400, detail="Empty file uploaded.")
-
-        # 1. Preprocess & segment
-        image_bgr, enhanced_bgr, normalized_input, seg_metrics = process_skin_image(contents)
-
-        # 2. Model inference
-        inference_result = skin_engine.predict(normalized_input, seg_metrics)
-
-        # 3. Explainability: generate Grad-CAM overlay
-        heatmap_overlay_url = generate_skin_gradcam_overlay(
-            image_bgr=image_bgr,
-            heatmap=inference_result.get("gradcamMap"),
-            alpha=0.45,
-        )
-
-        # 4. Generate AI clinical explanation
-        ai_exp = generate_report_explanation(
-            {
-                "topCondition": inference_result["topCondition"],
-                "topConfidence": inference_result["topConfidence"],
-                "predictions": inference_result["predictions"],
-                "segmentationMetrics": seg_metrics,
-                "requiresSpecialistReview": inference_result.get("requiresSpecialistReview", False),
-            },
-            module="skin",
-        )
-
-        total_elapsed = round(time.time() - start_total, 2)
-
-        return JSONResponse(
-            content={
-                "module": "skin",
-                "predictions": inference_result["predictions"],
-                "topCondition": inference_result["topCondition"],
-                "topConfidence": inference_result["topConfidence"],
-                "topCategory": inference_result.get("topCategory", "Dermatological Condition"),
-                "tier": inference_result.get("tier", "Core Tier"),
-                "supportLevel": inference_result.get("supportLevel", "Data-Rich (>1000)"),
-                "requiresSpecialistReview": inference_result.get("requiresSpecialistReview", False),
-                "segmentationMetrics": seg_metrics,
-                "heatmapUrl": heatmap_overlay_url,
-                "aiExplanation": ai_exp,
-                "processingTime": f"{total_elapsed}s",
-                "disclaimer": MEDICAL_DISCLAIMER,
-            }
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Skin processing error: {str(e)}")
 
 
 @app.get("/api/ai/status")
@@ -484,7 +414,7 @@ async def explain_report_endpoint(
 ):
     """
     Generates a full AI Clinical Explanation for an analyzed diagnostic report.
-    Supports blood reports, cardiac ECGs, and skin lesion assessments.
+    Supports blood reports and cardiac ECGs.
     """
     try:
         report_data = payload.get("reportData", {})
@@ -553,7 +483,7 @@ def get_blood_reference_ranges():
 @app.post("/api/detect-module")
 async def auto_detect_module(file: UploadFile = File(...)):
     """
-    Automatically detects whether an uploaded file is an ECG strip, a skin photo, or a blood test report.
+    Automatically detects whether an uploaded file is an ECG strip or a blood test report.
     Uses aspect ratio, colorimetry (R-B chromatic difference), and edge structure.
     """
     try:
@@ -602,12 +532,12 @@ async def auto_detect_module(file: UploadFile = File(...)):
                 "reason": "Portrait document with white background and tabular text content"
             }
 
-        # 3. Default to skin lesion (warm dermoscopic tones, high R-B disparity, or non-strip aspect ratio)
+        # 3. Default to cardiac
         return {
-            "detectedModule": "skin",
-            "confidence": 0.91,
+            "detectedModule": "cardiac",
+            "confidence": 0.90,
             "aspectRatio": round(aspect_ratio, 2),
-            "reason": "Dermatological lesion characteristics and skin chrominance"
+            "reason": "ECG rhythm or waveform image characteristics"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Module detection error: {str(e)}")

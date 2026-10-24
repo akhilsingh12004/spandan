@@ -26,8 +26,7 @@ import {
   HelpCircle,
   Clock,
   Layers,
-  HeartPulse,
-  ScanEye
+  HeartPulse
 } from 'lucide-react'
 import { fetchReportExplanation, askReportAI } from '../services/api'
 
@@ -46,7 +45,7 @@ export default function AIReportExplainer({ reportData, module = 'blood' }) {
   const [messages, setMessages] = useState([
     {
       sender: 'ai',
-      text: `Hello! I am your Spandan AI Health Assistant. I have thoroughly evaluated your ${module === 'blood' ? 'blood test report' : module === 'cardiac' ? 'ECG rhythm strip' : 'skin lesion analysis'}. How can I help you understand your results today?`,
+      text: `Hello! I am your Spandan AI Health Assistant. I have thoroughly evaluated your ${module === 'blood' ? 'blood test report' : 'ECG rhythm strip'}. How can I help you understand your results today?`,
       timestamp: 'Just now'
     }
   ])
@@ -208,7 +207,6 @@ Medical Disclaimer: For educational and decision-support purposes only. Consult 
       case 'hepatic': return <Shield size={18} />
       case 'renal': return <Droplets size={18} />
       case 'rhythm': return <HeartPulse size={18} />
-      case 'integumentary': return <ScanEye size={18} />
       default: return <Sparkles size={18} />
     }
   }

@@ -22,20 +22,6 @@ export async function predictCardiac(imageFile) {
   return response.data
 }
 
-/**
- * Predict skin condition from skin photo
- * @param {File} imageFile - The skin photo file
- * @returns {Promise} - Prediction results
- */
-export async function predictSkin(imageFile) {
-  const formData = new FormData()
-  formData.append('file', imageFile)
-
-  const response = await api.post('/api/predict/skin', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
-  return response.data
-}
 
 /**
  * Predict condition and evaluate blood test report (image or PDF or manual inputs)
@@ -134,7 +120,7 @@ export async function autoDetectModule(file) {
 /**
  * Request AI explanation for an analyzed diagnostic report
  * @param {Object} reportData - The report prediction results
- * @param {string} module - 'blood', 'cardiac', or 'skin'
+ * @param {string} module - 'blood' or 'cardiac'
  * @param {string} readingLevel - 'standard' or 'simple'
  * @returns {Promise} - AI Explanation object
  */
@@ -157,7 +143,7 @@ export async function fetchReportExplanation(reportData, module = 'blood', readi
  * @param {Object} reportData - The report prediction results
  * @param {string} message - User question
  * @param {Array} chatHistory - Previous messages
- * @param {string} module - 'blood', 'cardiac', or 'skin'
+ * @param {string} module - 'blood' or 'cardiac'
  * @returns {Promise} - { reply: string, followUpSuggestions: Array }
  */
 export async function askReportAI(reportData, message, chatHistory = [], module = 'blood') {
@@ -246,48 +232,6 @@ export function simulateCardiacPrediction() {
     return ecgResult
 }
 
-export function simulateSkinPrediction() {
-  const diseases = [
-    { name: 'Melanocytic Nevus (Mole)', category: 'Neoplastic & Pre-Malignant', tier: 'Core Tier', supportLevel: 'Data-Rich (>1000)', requiresSpecialistReview: false, confidence: 0.05 + Math.random() * 0.15 },
-    { name: 'Melanoma', category: 'Neoplastic & Pre-Malignant', tier: 'Core Tier', supportLevel: 'High Risk / Specialist Flag', requiresSpecialistReview: true, confidence: 0.02 + Math.random() * 0.08 },
-    { name: 'Basal Cell Carcinoma', category: 'Neoplastic & Pre-Malignant', tier: 'Core Tier', supportLevel: 'Data-Rich (>1000)', requiresSpecialistReview: true, confidence: 0.02 + Math.random() * 0.06 },
-    { name: 'Herpes Zoster (Shingles)', category: 'Infectious (Viral)', tier: 'Extended Tier', supportLevel: 'Moderate (600)', requiresSpecialistReview: false, confidence: 0.02 + Math.random() * 0.05 },
-    { name: 'Lichen Planus', category: 'Inflammatory & Autoimmune', tier: 'Extended Tier', supportLevel: 'Sparse (<300)', requiresSpecialistReview: true, confidence: 0.01 + Math.random() * 0.04 },
-    { name: 'Seborrheic Dermatitis', category: 'Inflammatory & Autoimmune', tier: 'Extended Tier', supportLevel: 'Data-Rich (>1000)', requiresSpecialistReview: false, confidence: 0.01 + Math.random() * 0.04 },
-    { name: 'Molluscum Contagiosum', category: 'Infectious (Viral)', tier: 'Extended Tier', supportLevel: 'Sparse (<250)', requiresSpecialistReview: true, confidence: 0.01 + Math.random() * 0.03 },
-    { name: 'Cellulitis', category: 'Infectious (Bacterial)', tier: 'Extended Tier', supportLevel: 'Critical / Specialist Flag', requiresSpecialistReview: true, confidence: 0.005 + Math.random() * 0.03 },
-    { name: 'Eczema', category: 'Inflammatory & Autoimmune', tier: 'Core Tier', supportLevel: 'Data-Rich (>1000)', requiresSpecialistReview: false, confidence: 0.005 + Math.random() * 0.03 },
-    { name: 'Psoriasis', category: 'Inflammatory & Autoimmune', tier: 'Core Tier', supportLevel: 'Data-Rich (>1000)', requiresSpecialistReview: false, confidence: 0.005 + Math.random() * 0.02 },
-  ]
-
-  const topIndex = Math.floor(Math.random() * 3)
-  diseases[topIndex].confidence = 0.72 + Math.random() * 0.2
-
-  const total = diseases.reduce((sum, d) => sum + d.confidence, 0)
-  diseases.forEach(d => d.confidence = d.confidence / total)
-  diseases.sort((a, b) => b.confidence - a.confidence)
-
-  const topPred = diseases[0]
-
-  const skinResult = {
-    module: 'skin',
-    predictions: diseases,
-    topCondition: topPred.name,
-    topConfidence: topPred.confidence,
-    topCategory: topPred.category,
-    tier: topPred.tier,
-    supportLevel: topPred.supportLevel,
-    requiresSpecialistReview: topPred.requiresSpecialistReview,
-    segmentationMetrics: {
-      asymmetryIndex: 0.18,
-      borderIrregularity: 0.22,
-      estimatedDiameterPx: 78,
-    },
-    processingTime: (0.8 + Math.random() * 1.2).toFixed(2) + 's',
-  }
-  skinResult.aiExplanation = generateLocalExplanation(skinResult, 'skin')
-  return skinResult
-}
 
 export function simulateBloodPrediction(hint = '') {
   const hintStr = typeof hint === 'string' ? hint.toLowerCase() : JSON.stringify(hint).toLowerCase()
@@ -469,56 +413,6 @@ export function generateLocalExplanation(reportData, module = 'blood', readingLe
     }
   }
 
-  if (module === 'skin') {
-    const top = reportData.topCondition || 'Melanocytic Nevus (Mole)'
-    const conf = Math.round((reportData.topConfidence || 0.75) * 100)
-    const isBenign = top.includes('Nevus') || top.includes('Normal') || top.includes('Benign') || top.includes('Mole')
-
-    return {
-      module: 'skin',
-      headline: isSimple 
-        ? `Skin Check Result: ${top} (${conf}% Match)` 
-        : `Dermatological Assessment: ${top} (${conf}% Confidence)`,
-      healthScore: isBenign ? 90 : 62,
-      acuityLevel: reportData.requiresSpecialistReview ? 'High' : isBenign ? 'Low' : 'Moderate',
-      executiveSummary: isSimple
-        ? (isBenign
-            ? `Your skin photo matches the appearance of a common, harmless skin mark (${top}). It shows standard borders and color. Just keep an eye on it for any sudden changes in size or shape.`
-            : `The AI evaluated your skin spot and found features matching "${top}". Because skin spots should always be examined in person, we recommend having a certified dermatologist check it with a dermatoscope.`)
-        : `Convolutional transfer-learning classifies the skin lesion as ${top} (${conf}% confidence). Morphological ABCD boundary metrics and 2D Grad-CAM focus support this attribution. ${reportData.requiresSpecialistReview ? 'Clinical examination and dermoscopic biopsy evaluation by a licensed dermatologist is strongly advised.' : 'Continue regular skin self-surveillance.'}`,
-      organSystems: [
-        {
-          id: 'integumentary',
-          name: isSimple ? 'Skin Layer & Surface Marks' : 'Cutaneous & Epidermal Architecture',
-          icon: 'ScanEye',
-          status: isBenign ? 'OPTIMAL' : 'ATTENTION_NEEDED',
-          summary: isSimple ? `Evaluated mark: ${top}.` : `Identified lesion: ${top}. Asymmetry Index: ${reportData.segmentationMetrics?.asymmetryIndex?.toFixed(2) || '0.18'}.`,
-          relevantMarkers: [`Asymmetry: ${reportData.segmentationMetrics?.asymmetryIndex || 0.18}`, `Border: ${reportData.segmentationMetrics?.borderIrregularity || 0.22}`],
-          physiologicalMechanism: isSimple 
-            ? 'Skin cells produce melanin pigment to protect deeper skin layers from sunlight.' 
-            : 'Melanocytes provide cellular photoprotection by distributing melanin to basal keratinocytes.'
-        }
-      ],
-      lifestylePrescription: {
-        nutrition: ['Eat foods rich in antioxidants like berries, tomatoes, and leafy greens to support healthy skin.'],
-        exercise: ['When exercising outdoors, wear a hat and avoid direct midday sun (11 AM to 3 PM).'],
-        supplements: ['Discuss Vitamin D or skin-supporting nutrients with your doctor.'],
-        habits: ['Apply SPF 30+ sunscreen on sunny days.', 'Check your skin once a month for new or changing spots.']
-      },
-      doctorChecklist: {
-        questions: [
-          `Does this spot look typical, or should we examine it with a medical dermatoscope?`,
-          'How often should I have routine skin checkups based on my skin type?',
-          'What specific changes (size, itching, bleeding) should I watch out for?'
-        ],
-        recommendedSpecialists: ['Dermatologist'],
-        followUpTimeline: reportData.requiresSpecialistReview ? 'Within 1 to 2 weeks' : 'Routine annual checkup'
-      },
-      redFlags: ['Spontaneous bleeding or oozing without injury', 'Spot growing rapidly or changing color', 'Painful or severely itchy growth'],
-      readingLevel,
-      generatedAt: new Date().toLocaleTimeString()
-    }
-  }
 
   // Blood Report Local Explanation
   const abnormalCount = reportData.summary?.abnormalCount ?? 0

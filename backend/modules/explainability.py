@@ -1,6 +1,5 @@
 """
 Explainability Module (Grad-CAM Visualizations)
-- Generates 2D Grad-CAM heatmap overlays on skin lesions
 - Generates 1D Signal Grad-CAM attribution graphs on ECG waveforms
 - Exports rendered visualizations as base64 data URLs for seamless frontend display
 """
@@ -13,44 +12,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from typing import Optional
-
-
-def generate_skin_gradcam_overlay(
-    image_bgr: np.ndarray,
-    heatmap: Optional[np.ndarray] = None,
-    alpha: float = 0.45
-) -> str:
-    """
-    Generate an explainability Grad-CAM heatmap overlay for a skin lesion.
-    Returns: base64 encoded data URI string ('data:image/jpeg;base64,...')
-    """
-    h, w = image_bgr.shape[:2]
-
-    if heatmap is None:
-        # Generate synthetic realistic saliency map centered on lesion region
-        center_x, center_y = w // 2, h // 2
-        sigma_x, sigma_y = w // 4, h // 4
-        y_grid, x_grid = np.ogrid[:h, :w]
-        heatmap = np.exp(-(((x_grid - center_x) ** 2) / (2 * sigma_x ** 2) + 
-                           ((y_grid - center_y) ** 2) / (2 * sigma_y ** 2)))
-    else:
-        # Resize provided activation map to original image resolution
-        heatmap = cv2.resize(heatmap, (w, h))
-
-    # Normalize heatmap to [0, 1]
-    heatmap_norm = np.clip(heatmap, 0, 1)
-    heatmap_uint8 = np.uint8(255 * heatmap_norm)
-
-    # Apply Jet/Turbo colormap for medical visualization
-    colored_heatmap = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
-
-    # Alpha blend with original image
-    overlay = cv2.addWeighted(image_bgr, 1 - alpha, colored_heatmap, alpha, 0)
-
-    # Encode to JPEG in memory
-    _, buffer = cv2.imencode('.jpg', overlay, [int(cv2.IMWRITE_JPEG_QUALITY), 92])
-    base64_str = base64.b64encode(buffer).decode('utf-8')
-    return f"data:image/jpeg;base64,{base64_str}"
 
 
 def generate_ecg_gradcam_visualization(

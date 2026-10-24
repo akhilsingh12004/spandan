@@ -1,5 +1,5 @@
 """
-Generate realistic sample ECG strip images and skin lesion photos for testing
+Generate realistic sample ECG strip images for testing
 """
 
 import cv2
@@ -64,46 +64,5 @@ def generate_sample_ecg():
     return out_path
 
 
-def generate_sample_skin():
-    """Generates a realistic dermatoscopy image of a skin lesion with hairs."""
-    size = 400
-    canvas = np.ones((size, size, 3), dtype=np.uint8)
-
-    # Caucasian/fair skin background (BGR)
-    canvas[:, :] = (180, 200, 235)
-    
-    # Add subtle skin texture noise
-    noise = np.random.normal(0, 4, (size, size, 3)).astype(np.int16)
-    canvas = np.clip(canvas.astype(np.int16) + noise, 0, 255).astype(np.uint8)
-
-    # Draw pigmented lesion (dark brown / variegated)
-    center = (size // 2, size // 2)
-    # Main body
-    cv2.circle(canvas, center, 75, (45, 55, 115), -1, cv2.LINE_AA)
-    # Irregular borders
-    for angle in np.linspace(0, 2 * np.pi, 20):
-        r = 75 + int(np.random.normal(0, 10))
-        px = int(center[0] + r * np.cos(angle))
-        py = int(center[1] + r * np.sin(angle))
-        cv2.circle(canvas, (px, py), 15, (40, 50, 100), -1, cv2.LINE_AA)
-    
-    # Inner dark core
-    cv2.circle(canvas, center, 40, (25, 30, 65), -1, cv2.LINE_AA)
-
-    # Blur lesion edges slightly to simulate real skin diffusion
-    blurred = cv2.GaussianBlur(canvas, (7, 7), 0)
-
-    # Add dark hair strands across lesion (to test DullRazor hair removal)
-    cv2.line(blurred, (80, 120), (320, 280), (30, 25, 20), 2, cv2.LINE_AA)
-    cv2.line(blurred, (140, 70), (270, 340), (25, 20, 15), 2, cv2.LINE_AA)
-    cv2.line(blurred, (50, 260), (350, 140), (35, 30, 25), 1, cv2.LINE_AA)
-
-    out_path = SAMPLE_DIR / "sample_skin.png"
-    cv2.imwrite(str(out_path), blurred)
-    print(f"Generated sample skin photo: {out_path}")
-    return out_path
-
-
 if __name__ == "__main__":
     generate_sample_ecg()
-    generate_sample_skin()

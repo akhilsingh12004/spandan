@@ -13,7 +13,6 @@ class SpandanInferenceEngine:
     def load_models(self):
         try:
             self.models['ecg'] = joblib.load(os.path.join(self.base_path, "models/ecg_model.pkl"))
-            self.models['skin'] = joblib.load(os.path.join(self.base_path, "models/skin_model.pkl"))
             self.models['blood'] = joblib.load(os.path.join(self.base_path, "models/blood_model.pkl"))
             print("All SOTA models loaded successfully.")
         except Exception as e:
@@ -24,12 +23,6 @@ class SpandanInferenceEngine:
         data = np.array(features).reshape(1, -1)
         prediction = self.models['ecg'].predict(data)
         prob = self.models['ecg'].predict_proba(data)[0]
-        return {"prediction": int(prediction[0]), "confidence": float(np.max(prob))}
-
-    def predict_skin(self, features):
-        data = np.array(features).reshape(1, -1)
-        prediction = self.models['skin'].predict(data)
-        prob = self.models['skin'].predict_proba(data)[0]
         return {"prediction": int(prediction[0]), "confidence": float(np.max(prob))}
 
     def predict_blood(self, features):
