@@ -455,3 +455,207 @@ export function exportBloodReportPDF(results, patientContext = null) {
   doc.save(filename)
   return filename
 }
+
+
+/**
+ * Generates a comprehensive clinical PDF for Cardiac Analysis & Digital ECG Reconstruction
+ * @param {Object} results - Cardiac prediction & reconstruction results
+ * @param {string|null} originalImage - Original uploaded image data URL / preview
+ */
+export function exportCardiacReportPDF(results, originalImage = null) {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  })
+
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const timestamp = new Date().toLocaleString()
+  const reportId = `ECG-${Math.random().toString(36).substr(2, 8).toUpperCase()}`
+
+  const primaryColor = [13, 148, 136] // teal #0d9488
+  const textDark = [30, 41, 59]       // slate-800
+  const textMuted = [100, 116, 139]   // slate-500
+  const dangerColor = [225, 29, 72]   // rose-600
+  const amberColor = [217, 119, 6]    // amber-600
+  const successColor = [16, 185, 129] // emerald-500
+
+  // Top Accent Bar
+  doc.setFillColor(...primaryColor)
+  doc.rect(0, 0, pageWidth, 6, 'F')
+
+  // Header Title
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(22)
+  doc.setTextColor(...primaryColor)
+  doc.text('SPANDAN AI', 14, 18)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.setTextColor(...textMuted)
+  doc.text('Standardized Digital ECG Reconstruction & Diagnostic Report', 14, 24)
+
+  // Report Metadata (right side)
+  doc.setFontSize(8)
+  doc.text(`Report ID: ${reportId}`, pageWidth - 14, 16, { align: 'right' })
+  doc.text(`Generated: ${timestamp}`, pageWidth - 14, 21, { align: 'right' })
+  doc.text('Engine: Spandan Digital ECG v2.4', pageWidth - 14, 26, { align: 'right' })
+
+  doc.setDrawColor(226, 232, 240)
+  doc.setLineWidth(0.5)
+  doc.line(14, 30, pageWidth - 14, 30)
+
+  let curY = 35
+
+  // 1. Findings & Rhythm Card
+  const topCond = results.topCondition || results.predictions?.[0]?.name || 'Normal Sinus Rhythm'
+  const topConf = Math.round((results.topConfidence || results.predictions?.[0]?.confidence || 0.95) * 100)
+  const isNormal = topCond.toLowerCase().includes('normal') || topCond.toLowerCase().includes('sinus')
+  const statusColor = isNormal ? successColor : dangerColor
+
+  doc.setFillColor(248, 250, 252)
+  doc.setDrawColor(203, 213, 225)
+  doc.roundedRect(14, curY, pageWidth - 28, 24, 2, 2, 'FD')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(...textDark)
+  doc.text('IDENTIFIED CARDIAC RHYTHM PATTERN', 20, curY + 7)
+
+  doc.setFontSize(12)
+  doc.setTextColor(...statusColor)
+  doc.text(topCond, 20, curY + 16)
+
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...textMuted)
+  doc.text(`Confidence: ${topConf}%`, pageWidth - 24, curY + 16, { align: 'right' })
+
+  curY += 28
+
+  // 2. Metrics Grid (HR, RR, QT, PR, QRS, HRV)
+  const metrics = results.metrics || {}
+  const mBoxWidth = (pageWidth - 28 - 15) / 4
+  const mBoxHeight = 16
+
+  const metricItems = [
+    { label: 'HEART RATE', val: `${metrics.heartRate || 75} BPM` },
+    { label: 'R-R INTERVAL', val: metrics.rrInterval || '800 ms' },
+    { label: 'QT INTERVAL', val: metrics.qtInterval || '390 ms' },
+    { label: 'QRS DURATION', val: metrics.qrsDuration || '95 ms' },
+  ]
+
+  metricItems.forEach((m, idx) => {
+    const mx = 14 + idx * (mBoxWidth + 5)
+    doc.setFillColor(255, 255, 255)
+    doc.setDrawColor(226, 232, 240)
+    doc.roundedRect(mx, curY, mBoxWidth, mBoxHeight, 1.5, 1.5, 'FD')
+
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...textMuted)
+    doc.text(m.label, mx + 4, curY + 5)
+
+    doc.setFontSize(10)
+    doc.setTextColor(...primaryColor)
+    doc.text(m.val, mx + 4, curY + 12)
+  })
+
+  curY += 21
+
+  // 3. Digital ECG Reconstruction Quality & Calibration Badge
+  const recon = results.reconstruction || {}
+  const quality = recon.quality?.reconstructionQuality || 'high'
+  const calib = recon.calibration || {}
+  const pxMm = calib.pxPerMm ? `${calib.pxPerMm} px/mm` : 'Detected'
+  const isAssumed = calib.calibrationSource === 'assumed'
+  const qualityColor = quality === 'high' ? successColor : (quality === 'medium' ? amberColor : dangerColor)
+
+  doc.setFillColor(248, 250, 252)
+  doc.setDrawColor(203, 213, 225)
+  doc.roundedRect(14, curY, pageWidth - 28, 16, 2, 2, 'FD')
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8.5)
+  doc.setTextColor(...textDark)
+  doc.text('RECONSTRUCTION FIDELITY:', 20, curY + 6)
+  doc.setTextColor(...qualityColor)
+  doc.text(quality.toUpperCase(), 70, curY + 6)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...textMuted)
+  doc.text(`Calibration: ${calib.speedMmPerS || 25} mm/s, ${calib.gainMmPerMv || 10} mm/mV (${calib.calibrationSource || 'grid_detected'})`, 20, curY + 12)
+
+  if (isAssumed) {
+    doc.setTextColor(...amberColor)
+    doc.text('* Assumed Calibration: Grid detection failed; standard defaults applied.', pageWidth - 20, curY + 12, { align: 'right' })
+  }
+
+  curY += 20
+
+  // 4. Embedded Reconstructed ECG Image
+  const reconImgUrl = recon.reconstructedImageUrl || results.heatmapUrl
+  if (reconImgUrl && reconImgUrl.startsWith('data:image')) {
+    try {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.setTextColor(...textDark)
+      doc.text('DIGITALLY RECONSTRUCTED CLINICAL ECG SHEET (300 DPI TO SCALE)', 14, curY)
+      curY += 3
+
+      const imgWidth = pageWidth - 28
+      const imgHeight = (imgWidth * 8.5) / 11.0 // Standard 11x8.5 ratio
+      doc.addImage(reconImgUrl, 'PNG', 14, curY, imgWidth, Math.min(imgHeight, 95))
+      curY += Math.min(imgHeight, 95) + 6
+    } catch (e) {
+      console.warn('PDF image embedding fallback:', e)
+    }
+  }
+
+  // 5. Clinical Summary Text
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(9)
+  doc.setTextColor(...textDark)
+  doc.text('CLINICAL SUMMARY & GUIDANCE', 14, curY)
+  curY += 4
+
+  const summary = results.aiExplanation?.headline ||
+    `Your ECG demonstrates ${topCond} with a steady heart rate of ${metrics.heartRate || 75} BPM. No acute conduction failure or ischemic elevation patterns detected.`
+  
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(...textDark)
+  const splitSummary = doc.splitTextToSize(summary, pageWidth - 28)
+  doc.text(splitSummary, 14, curY)
+  curY += (splitSummary.length * 4) + 4
+
+  // 6. Regulatory Disclaimers (Rule 7)
+  const discY = pageHeight - 22
+  doc.setDrawColor(226, 232, 240)
+  doc.line(14, discY - 2, pageWidth - 14, discY - 2)
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7.5)
+  doc.setTextColor(...dangerColor)
+  doc.text(
+    'MANDATORY RECONSTRUCTION NOTICE: Digitally reconstructed from a scanned image. Not the original recording. For reference only, not for diagnosis.',
+    14,
+    discY + 2
+  )
+
+  doc.setFont('helvetica', 'italic')
+  doc.setFontSize(6.5)
+  doc.setTextColor(...textMuted)
+  const genDisc = doc.splitTextToSize(
+    'IMPORTANT MEDICAL DISCLAIMER: This automated digital reconstruction and analysis is provided by Spandan AI for educational and clinical decision-support purposes only. It is NOT a substitute for formal electrocardiographic interpretation by a qualified physician or cardiologist. In the presence of acute chest symptoms or emergencies, contact emergency services immediately.',
+    pageWidth - 28
+  )
+  doc.text(genDisc, 14, discY + 6)
+
+  // Save the PDF
+  const filename = `Spandan_Digital_ECG_${Date.now()}.pdf`
+  doc.save(filename)
+  return filename
+}

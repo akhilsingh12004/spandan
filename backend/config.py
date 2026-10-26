@@ -4,6 +4,8 @@ Features Hierarchical Taxonomies, Core vs. Extended Class Tiers,
 and Clinical Data Support Categories.
 """
 import os
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+os.environ.setdefault("KERAS_HOME", "/tmp/.keras")
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent

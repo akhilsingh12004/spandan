@@ -7,16 +7,25 @@ import {
   RotateCcw, 
   HeartPulse, 
   AlertTriangle, 
+  AlertCircle,
   CheckCircle2, 
   TrendingUp, 
   TrendingDown, 
   HelpCircle, 
   Check, 
-  Info 
+  Info,
+  Activity,
+  Layers,
+  Eye,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react'
 import Disclaimer from '../components/Disclaimer'
 import BloodResultsView from '../components/BloodResultsView'
 import { useLanguage } from '../LanguageContext'
+import { exportCardiacReportPDF } from '../services/pdfExport'
+import { getSynchronousAnalysisSession, loadAnalysisSessionAsync } from '../services/storage'
+import { reconstructEcg } from '../services/api'
 
 export default function ResultsPage() {
   const { module } = useParams()
@@ -26,25 +35,190 @@ export default function ResultsPage() {
   const [uploadedImage, setUploadedImage] = useState(null)
   const [copied, setCopied] = useState(false)
 
+  // Interactive Digital ECG Viewer State
+  const [activeView, setActiveView] = useState('comparison') // 'comparison' | 'reconstructed' | 'original'
+  const [zoom, setZoom] = useState(1.0)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [renderMode, setRenderMode] = useState('faithful')
+  const [isReconstructing, setIsReconstructing] = useState(false)
+
   const isCardiac = module === 'cardiac'
   const isBlood = module === 'blood'
 
   useEffect(() => {
-    const storedResults = sessionStorage.getItem('analysisResults')
-    const storedImage = sessionStorage.getItem('analysisImage')
+    let isMounted = true
 
-    if (!storedResults) {
-      navigate(isCardiac ? '/cardiac' : isBlood ? '/blood' : '/cardiac')
+    // 1. Immediate synchronous retrieval from memory / sessionStorage
+    const syncSession = getSynchronousAnalysisSession()
+    if (syncSession.results) {
+      setResults(syncSession.results)
+      setUploadedImage(syncSession.image)
       return
     }
 
-    try {
-      setResults(JSON.parse(storedResults))
-      setUploadedImage(storedImage)
-    } catch (e) {
-      navigate('/')
+    // 2. Asynchronous restoration from IndexedDB (e.g. after hard page reload)
+    loadAnalysisSessionAsync().then((session) => {
+      if (!isMounted) return
+      if (session.results) {
+        setResults(session.results)
+        setUploadedImage(session.image)
+      } else {
+        navigate(isCardiac ? '/cardiac' : isBlood ? '/blood' : '/cardiac')
+      }
+    }).catch((err) => {
+      console.warn('Failed to load session:', err)
+      if (isMounted) {
+        navigate(isCardiac ? '/cardiac' : isBlood ? '/blood' : '/cardiac')
+      }
+    })
+
+    return () => {
+      isMounted = false
     }
   }, [module, navigate, isCardiac, isBlood])
+
+  // Digital ECG Reconstruction variables
+  const recon = results?.reconstruction
+  const hasRecon = !!(recon && (recon.reconstructedImageUrl || recon.comparisonImageUrl))
+  const hasComparison = !!recon?.comparisonImageUrl
+  const qualityLevel = recon?.quality?.reconstructionQuality || 'high'
+  const isAssumedCalib = recon?.calibration?.calibrationSource === 'assumed'
+  const reconWarnings = recon?.warnings || recon?.quality?.warnings || []
+
+  // Ensure activeView matches available images (Hook called unconditionally)
+  useEffect(() => {
+    if (hasRecon) {
+      if (hasComparison) {
+        setActiveView('comparison')
+      } else if (recon?.reconstructedImageUrl) {
+        setActiveView('reconstructed')
+      } else if (uploadedImage) {
+        setActiveView('original')
+      }
+    }
+  }, [hasRecon, hasComparison, recon?.reconstructedImageUrl, uploadedImage])
+
+  // Displayed image computation (Hook called unconditionally)
+  const displayedImage = useMemo(() => {
+    if (!recon) return uploadedImage
+    if (activeView === 'comparison' && recon.comparisonImageUrl) {
+      return recon.comparisonImageUrl
+    }
+    if (activeView === 'original' && uploadedImage) {
+      return uploadedImage
+    }
+    return recon.reconstructedImageUrl || uploadedImage
+  }, [activeView, recon, uploadedImage])
+
+  // Quality text label (Hook called unconditionally)
+  const qualityText = useMemo(() => {
+    if (qualityLevel === 'high') return t('qualityHigh')
+    if (qualityLevel === 'medium') return t('qualityMedium')
+    return t('qualityLow')
+  }, [qualityLevel, t])
+
+  const handleZoomIn = () => {
+    setZoom(z => Math.min(3.5, +(z + 0.25).toFixed(2)))
+  }
+
+  const handleZoomOut = () => {
+    setZoom(z => {
+      const next = Math.max(0.75, +(z - 0.25).toFixed(2))
+      if (next <= 1) setPan({ x: 0, y: 0 })
+      return next
+    })
+  }
+
+  const handleResetZoom = () => {
+    setZoom(1.0)
+    setPan({ x: 0, y: 0 })
+  }
+
+  const handleViewChange = (view) => {
+    setActiveView(view)
+    handleResetZoom()
+  }
+
+  const handleToggleRenderMode = async (mode) => {
+    if (mode === renderMode || isReconstructing) return
+    setIsReconstructing(true)
+    try {
+      if (uploadedImage) {
+        const res = await fetch(uploadedImage)
+        const blob = await res.blob()
+        const updatedRecon = await reconstructEcg(blob, mode)
+        if (updatedRecon) {
+          setResults(prev => ({
+            ...prev,
+            reconstruction: updatedRecon
+          }))
+          setRenderMode(mode)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to switch render mode:', err)
+    } finally {
+      setIsReconstructing(false)
+    }
+  }
+
+  // Pan interaction
+  const handleMouseDown = (e) => {
+    if (zoom <= 1) return
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y })
+  }
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return
+    setPan({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const handleTouchStart = (e) => {
+    if (zoom <= 1 || e.touches.length !== 1) return
+    setIsDragging(true)
+    setDragStart({ x: e.touches[0].clientX - pan.x, y: e.touches[0].clientY - pan.y })
+  }
+
+  const handleTouchMove = (e) => {
+    if (!isDragging || e.touches.length !== 1) return
+    setPan({
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y
+    })
+  }
+
+  const handleTouchEnd = () => {
+    setIsDragging(false)
+  }
+
+  const handleDownloadPng = () => {
+    if (!displayedImage) return
+    const link = document.createElement('a')
+    link.href = displayedImage
+    link.download = `Spandan_ECG_${activeView}_${Date.now()}.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleExportPDF = () => {
+    try {
+      exportCardiacReportPDF(results, uploadedImage)
+    } catch (err) {
+      console.error('PDF export failed, falling back to window.print():', err)
+      window.print()
+    }
+  }
 
   if (!results) return null
 
@@ -268,6 +442,289 @@ export default function ResultsPage() {
           </div>
         </div>
 
+        {/* 3B. Standardized Digital ECG Reconstruction */}
+        {hasRecon && (
+          <div className="digital-ecg-card" id="digital-ecg-section">
+            <div className="digital-ecg-header">
+              <div className="digital-ecg-title-group">
+                <h2 className="digital-ecg-title">
+                  <Activity size={22} className="digital-ecg-icon" />
+                  {t('digitalEcgSectionTitle')}
+                </h2>
+                <p className="digital-ecg-desc">
+                  {t('digitalEcgSectionDesc')}
+                </p>
+              </div>
+              <div className="digital-ecg-badges">
+                <span className={`ecg-quality-badge quality-${qualityLevel}`}>
+                  {qualityLevel === 'high' ? (
+                    <CheckCircle2 size={14} />
+                  ) : qualityLevel === 'medium' ? (
+                    <AlertTriangle size={14} />
+                  ) : (
+                    <AlertCircle size={14} />
+                  )}
+                  {qualityText}
+                </span>
+                <span className={`ecg-calib-badge ${isAssumedCalib ? 'calib-assumed' : 'calib-detected'}`}>
+                  {isAssumedCalib ? t('calAssumed') : t('calGridDetected')}
+                </span>
+              </div>
+            </div>
+
+            {/* Low Quality Banner */}
+            {qualityLevel === 'low' && (
+              <div className="ecg-recon-alert critical" id="ecg-low-quality-alert">
+                <AlertCircle size={20} className="alert-icon-svg" />
+                <div className="alert-content">
+                  <strong>{t('qualityLow')}:</strong> {t('lowQualityWarning')}
+                </div>
+              </div>
+            )}
+
+            {/* Assumed Calibration Notice */}
+            {isAssumedCalib && (
+              <div className="ecg-recon-alert warning" id="ecg-assumed-calib-alert">
+                <AlertTriangle size={20} className="alert-icon-svg" />
+                <div className="alert-content">
+                  <strong>{t('calSourceLabel')}:</strong> {t('assumedCalWarning')}
+                </div>
+              </div>
+            )}
+
+            {/* Warnings list if any */}
+            {reconWarnings.length > 0 && qualityLevel !== 'low' && (
+              <div className="ecg-recon-alert info" id="ecg-recon-warnings">
+                <Info size={18} className="alert-icon-svg" />
+                <div className="alert-content">
+                  <ul className="ecg-warning-list">
+                    {reconWarnings.map((w, idx) => (
+                      <li key={idx}>{w}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* Viewer Toolbar */}
+            <div className="digital-ecg-toolbar">
+              <div className="ecg-view-tabs" role="tablist">
+                {hasComparison && (
+                  <button
+                    type="button"
+                    role="tab"
+                    id="ecg-tab-compare"
+                    aria-selected={activeView === 'comparison'}
+                    className={`ecg-tab-btn ${activeView === 'comparison' ? 'active' : ''}`}
+                    onClick={() => handleViewChange('comparison')}
+                  >
+                    <Layers size={15} />
+                    <span>{t('compareView')}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  role="tab"
+                  id="ecg-tab-recon"
+                  aria-selected={activeView === 'reconstructed'}
+                  className={`ecg-tab-btn ${activeView === 'reconstructed' ? 'active' : ''}`}
+                  onClick={() => handleViewChange('reconstructed')}
+                >
+                  <Activity size={15} />
+                  <span>{t('reconstructedView')}</span>
+                </button>
+                {uploadedImage && (
+                  <button
+                    type="button"
+                    role="tab"
+                    id="ecg-tab-original"
+                    aria-selected={activeView === 'original'}
+                    className={`ecg-tab-btn ${activeView === 'original' ? 'active' : ''}`}
+                    onClick={() => handleViewChange('original')}
+                  >
+                    <Eye size={15} />
+                    <span>{t('originalView')}</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="ecg-toolbar-actions">
+                {/* Render Mode Toggle: Faithful vs Clean */}
+                <div className="ecg-mode-toggle" style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--surface, #f1f5f9)', padding: '2px', borderRadius: '6px', border: '1px solid var(--border, #e2e8f0)', marginRight: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className={`ecg-tool-btn ${renderMode === 'faithful' ? 'active' : ''}`}
+                    onClick={() => handleToggleRenderMode('faithful')}
+                    disabled={isReconstructing}
+                    title="Faithful: Preserves natural EMG tremor & un-altered peaks"
+                    style={{ fontSize: '0.75rem', padding: '4px 8px', fontWeight: renderMode === 'faithful' ? 600 : 400, borderRadius: '4px' }}
+                  >
+                    Faithful
+                  </button>
+                  <button
+                    type="button"
+                    className={`ecg-tool-btn ${renderMode === 'clean' ? 'active' : ''}`}
+                    onClick={() => handleToggleRenderMode('clean')}
+                    disabled={isReconstructing}
+                    title="Clean: 40 Hz lowpass filter & PR baseline leveling"
+                    style={{ fontSize: '0.75rem', padding: '4px 8px', fontWeight: renderMode === 'clean' ? 600 : 400, borderRadius: '4px' }}
+                  >
+                    Clean (40Hz)
+                  </button>
+                </div>
+
+                <div className="ecg-zoom-controls">
+                  <button 
+                    type="button"
+                    onClick={handleZoomOut} 
+                    className="ecg-tool-btn" 
+                    title={t('zoomOut')}
+                    aria-label={t('zoomOut')}
+                    disabled={zoom <= 0.75}
+                  >
+                    <ZoomOut size={16} />
+                  </button>
+                  <span className="ecg-zoom-label">{Math.round(zoom * 100)}%</span>
+                  <button 
+                    type="button"
+                    onClick={handleZoomIn} 
+                    className="ecg-tool-btn" 
+                    title={t('zoomIn')}
+                    aria-label={t('zoomIn')}
+                    disabled={zoom >= 3.5}
+                  >
+                    <ZoomIn size={16} />
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={handleResetZoom} 
+                    className="ecg-tool-btn" 
+                    title={t('resetZoom')}
+                    aria-label={t('resetZoom')}
+                  >
+                    <RotateCcw size={15} />
+                  </button>
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={handleDownloadPng} 
+                  className="ecg-download-btn"
+                  id="ecg-download-png-btn"
+                  title={t('downloadPng')}
+                >
+                  <Download size={15} />
+                  <span>{t('downloadPng')}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Interactive Viewport */}
+            <div 
+              className="digital-ecg-viewport"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              style={{ cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+            >
+              <div 
+                className="digital-ecg-canvas"
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  transformOrigin: 'center center',
+                  transition: isDragging ? 'none' : 'transform 0.12s ease-out'
+                }}
+              >
+                <img 
+                  src={displayedImage} 
+                  alt="ECG Report" 
+                  className="digital-ecg-img" 
+                  draggable={false} 
+                />
+              </div>
+
+              <div className="ecg-viewport-hint">
+                {zoom > 1 ? (
+                  <span>{lang === 'hi' ? 'खींचकर आगे-पीछे देखें' : 'Click & drag to pan'}</span>
+                ) : (
+                  <span>{lang === 'hi' ? 'विस्तार से देखने के लिए ज़ूम करें' : 'Use zoom controls to inspect waveforms'}</span>
+                )}
+              </div>
+            </div>
+
+            {/* Mandatory Regulatory Disclaimer (Rule 7) */}
+            <div className="digital-ecg-disclaimer-bar">
+              <span>{t('digitalEcgDisclaimer')}</span>
+            </div>
+
+            {/* Calibration & Technical Parameters Grid */}
+            <div className="digital-ecg-meta-grid">
+              <div className="ecg-meta-item">
+                <span className="meta-label">{t('speedGainMetric')}</span>
+                <span className="meta-val">{recon.calibration?.speedMmPerS || 25} mm/s, {recon.calibration?.gainMmPerMv || 10} mm/mV</span>
+              </div>
+              <div className="ecg-meta-item">
+                <span className="meta-label">Limb / Chest Gain</span>
+                <span className="meta-val">
+                  {recon.calibration?.limbGainMmPerMv || 10} / {recon.calibration?.chestGainMmPerMv || 10} mm/mV
+                </span>
+              </div>
+              <div className="ecg-meta-item">
+                <span className="meta-label">{t('calSourceLabel')}</span>
+                <span className="meta-val">
+                  {recon.calibration?.pxPerMm ? `${recon.calibration.pxPerMm.toFixed(1)} px/mm` : 'Detected'} ({isAssumedCalib ? 'assumed' : 'grid'})
+                </span>
+              </div>
+              <div className="ecg-meta-item">
+                <span className="meta-label">{t('coverageMetric')}</span>
+                <span className="meta-val">
+                  {recon.quality?.meanCoverage != null ? `${(recon.quality.meanCoverage * 100).toFixed(1)}%` : '100%'}
+                </span>
+              </div>
+              <div className="ecg-meta-item">
+                <span className="meta-label">Reprojection</span>
+                <span className="meta-val">
+                  {recon.quality?.within1PxPct != null ? `${recon.quality.within1PxPct}% <= 1px` : '100%'} ({recon.quality?.reprojectionErrorPx || 0.2}px)
+                </span>
+              </div>
+              <div className="ecg-meta-item">
+                <span className="meta-label">Filter Bandwidth</span>
+                <span className="meta-val">{recon.calibration?.filterText || '0.15-150 Hz'}</span>
+              </div>
+            </div>
+
+            {/* Physiological Validation Self-Checks Panel */}
+            {recon.quality?.checks && recon.quality.checks.length > 0 && (
+              <div className="digital-ecg-checks-panel" style={{ marginTop: '1rem', padding: '0.875rem 1rem', background: 'var(--surface, #f8fafc)', borderRadius: '8px', border: '1px solid var(--border, #e2e8f0)' }}>
+                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary, #334155)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Cardiology Self-Checks (Zero Hallucination Proof)
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.5rem' }}>
+                  {recon.quality.checks.map((chk, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8125rem', background: '#ffffff', padding: '6px 10px', borderRadius: '6px', border: '1px solid #f1f5f9' }}>
+                      {chk.passed ? (
+                        <CheckCircle2 size={15} color="#16a34a" style={{ flexShrink: 0 }} />
+                      ) : (
+                        <AlertTriangle size={15} color="#d97706" style={{ flexShrink: 0 }} />
+                      )}
+                      <div>
+                        <span style={{ fontWeight: 600, color: '#1e293b' }}>{chk.description || chk.check}:</span>{' '}
+                        <span style={{ color: chk.passed ? '#15803d' : '#b45309', fontWeight: 500 }}>
+                          {chk.passed ? 'Verified' : 'Notice'} ({chk.value} {chk.unit || ''})
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 4. What you can do */}
         <div className="results-guidance-card" id="ecg-what-you-can-do">
           <h3>
@@ -303,7 +760,7 @@ export default function ResultsPage() {
         {/* 6. Buttons: Save as PDF, Share, Check another report */}
         <div className="results-actions-bar" id="ecg-actions-bar">
           <button 
-            onClick={() => window.print()}
+            onClick={handleExportPDF}
             className="btn btn-primary"
             id="print-ecg-btn"
           >

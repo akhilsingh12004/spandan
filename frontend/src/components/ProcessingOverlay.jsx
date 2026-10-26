@@ -3,7 +3,11 @@ import { Check, Loader2 } from 'lucide-react'
 
 const CARDIAC_STEPS = [
   'Preprocessing ECG image...',
+  'Correcting perspective...',
+  'Detecting grid and calibration...',
   'Removing grid lines & noise...',
+  'Extracting leads...',
+  'Rebuilding digital ECG...',
   'Digitizing waveform signal...',
   'Extracting P-QRS-T features...',
   'Running cardiac classification model...',

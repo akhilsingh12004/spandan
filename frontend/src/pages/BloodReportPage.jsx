@@ -20,6 +20,7 @@ import {
   analyzeComprehensiveBlood, 
   simulateBloodPrediction 
 } from '../services/api'
+import { saveAnalysisSession } from '../services/storage'
 import { TEST_PLAIN_NAMES } from '../translations'
 
 const COMMON_TEST_OPTIONS = [
@@ -194,17 +195,19 @@ export default function BloodReportPage() {
       results = simulateBloodPrediction(verifiedMap, patientContextPayload)
     }
 
-    sessionStorage.setItem('analysisResults', JSON.stringify(results))
-    if (selectedImage?.preview) {
-      sessionStorage.setItem('analysisImage', selectedImage.preview)
-    } else {
-      sessionStorage.removeItem('analysisImage')
+    try {
+      await saveAnalysisSession({
+        results,
+        image: selectedImage?.preview || null,
+        module: 'blood',
+        patientContext: patientContextPayload
+      })
+    } catch (saveErr) {
+      console.warn('Analysis session saving error (continuing):', saveErr)
+    } finally {
+      setIsProcessing(false)
+      navigate('/results/blood')
     }
-    sessionStorage.setItem('analysisModule', 'blood')
-    sessionStorage.setItem('patientContext', JSON.stringify(patientContextPayload))
-
-    setIsProcessing(false)
-    navigate('/results/blood')
   }
 
   return (

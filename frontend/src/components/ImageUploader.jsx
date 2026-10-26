@@ -25,13 +25,65 @@ export default function ImageUploader({
     } else {
       const reader = new FileReader()
       reader.onload = () => {
-        onImageSelect({
-          file,
-          preview: reader.result,
-          isPdf: false,
-          name: file.name,
-          size: file.size,
-        })
+        const rawPreview = reader.result
+        // Optimize large preview images to avoid bloating client-side storage
+        if (typeof rawPreview === 'string' && rawPreview.startsWith('data:image') && rawPreview.length > 800000) {
+          const img = new Image()
+          img.onload = () => {
+            let { naturalWidth: width, naturalHeight: height } = img
+            const maxDim = 1600
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width)
+                width = maxDim
+              } else {
+                width = Math.round((width * maxDim) / height)
+                height = maxDim
+              }
+            }
+            try {
+              const canvas = document.createElement('canvas')
+              canvas.width = width
+              canvas.height = height
+              const ctx = canvas.getContext('2d')
+              ctx.drawImage(img, 0, 0, width, height)
+              const optimized = canvas.toDataURL('image/jpeg', 0.88)
+              onImageSelect({
+                file,
+                preview: optimized,
+                isPdf: false,
+                name: file.name,
+                size: file.size,
+              })
+            } catch (_) {
+              onImageSelect({
+                file,
+                preview: rawPreview,
+                isPdf: false,
+                name: file.name,
+                size: file.size,
+              })
+            }
+          }
+          img.onerror = () => {
+            onImageSelect({
+              file,
+              preview: rawPreview,
+              isPdf: false,
+              name: file.name,
+              size: file.size,
+            })
+          }
+          img.src = rawPreview
+        } else {
+          onImageSelect({
+            file,
+            preview: rawPreview,
+            isPdf: false,
+            name: file.name,
+            size: file.size,
+          })
+        }
       }
       reader.readAsDataURL(file)
     }

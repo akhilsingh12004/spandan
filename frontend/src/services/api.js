@@ -22,6 +22,22 @@ export async function predictCardiac(imageFile) {
   return response.data
 }
 
+/**
+ * Reconstruct physical ECG scan/photo into standardized digital ECG record
+ * @param {File} imageFile - The ECG photo or scan file
+ * @param {string} renderMode - 'faithful' (raw de-jitter) or 'clean' (40 Hz LP)
+ * @returns {Promise} - Digital ECG reconstruction results
+ */
+export async function reconstructEcg(imageFile, renderMode = 'faithful') {
+  const formData = new FormData()
+  formData.append('file', imageFile)
+
+  const response = await api.post(`/api/ecg/reconstruct?render_mode=${renderMode}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return response.data
+}
+
 
 /**
  * Predict condition and evaluate blood test report (image or PDF or manual inputs)
@@ -227,6 +243,81 @@ export function simulateCardiacPrediction() {
         qrsDuration: (80 + Math.floor(Math.random() * 40)) + ' ms',
       },
       processingTime: (1.2 + Math.random() * 1.5).toFixed(2) + 's',
+    }
+
+    // Mock Digital ECG reconstruction for offline fallback demo mode
+    const mockSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="1000" height="600" style="background:#fffcf7;">
+      <defs>
+        <pattern id="smallGrid" width="10" height="10" patternUnits="userSpaceOnUse">
+          <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#ffcccc" stroke-width="0.5"/>
+        </pattern>
+        <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+          <rect width="50" height="50" fill="url(#smallGrid)"/>
+          <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#ff8080" stroke-width="1"/>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#grid)" />
+      <text x="30" y="30" font-family="sans-serif" font-weight="bold" font-size="14" fill="#0f172a">SPANDAN AI DIGITAL ECG (DEMO MODE) | HR: ${ecgResult.metrics.heartRate} BPM</text>
+      <text x="700" y="30" font-family="sans-serif" font-size="11" fill="#475569">25 mm/s | 10 mm/mV | 0.05-100 Hz</text>
+      <!-- Row 1: I, aVR, V1, V4 -->
+      <path d="M 30 140 L 40 140 L 40 90 L 60 90 L 60 140 L 70 140" fill="none" stroke="#111" stroke-width="1.5" />
+      <text x="80" y="115" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">I</text>
+      <path d="M 80 140 Q 110 135 120 140 T 130 140 L 135 150 L 140 70 L 145 155 L 150 140 Q 170 130 190 140 T 250 140 Q 280 135 290 140 T 300 140 L 305 150 L 310 70 L 315 155 L 320 140" fill="none" stroke="#111" stroke-width="1.2" />
+      <text x="330" y="115" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">aVR</text>
+      <path d="M 330 140 Q 360 145 370 140 T 380 140 L 385 130 L 390 200 L 395 125 L 400 140 Q 420 150 440 140 T 500 140" fill="none" stroke="#111" stroke-width="1.2" />
+      <text x="550" y="115" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">V1</text>
+      <path d="M 550 140 Q 570 140 580 140 L 585 130 L 590 190 L 595 135 L 600 140 Q 620 150 640 140 T 720 140" fill="none" stroke="#111" stroke-width="1.2" />
+      <text x="770" y="115" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">V4</text>
+      <path d="M 770 140 Q 790 135 800 140 L 805 145 L 810 60 L 815 150 L 820 140 Q 840 130 860 140 T 940 140" fill="none" stroke="#111" stroke-width="1.2" />
+      <!-- Row 2: II, aVL, V2, V5 -->
+      <path d="M 30 270 L 40 270 L 40 220 L 60 220 L 60 270 L 70 270" fill="none" stroke="#111" stroke-width="1.5" />
+      <text x="80" y="245" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">II</text>
+      <path d="M 80 270 Q 110 265 120 270 T 130 270 L 135 280 L 140 200 L 145 285 L 150 270 Q 170 260 190 270 T 250 270" fill="none" stroke="#111" stroke-width="1.2" />
+      <text x="330" y="245" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">aVL</text>
+      <path d="M 330 270 Q 350 268 360 270 L 365 275 L 370 230 L 375 275 L 380 270 Q 400 265 420 270 T 480 270" fill="none" stroke="#111" stroke-width="1.2" />
+      <text x="550" y="245" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">V2</text>
+      <path d="M 550 270 Q 570 270 580 270 L 585 260 L 590 320 L 595 265 L 600 270 Q 620 280 640 270 T 720 270" fill="none" stroke="#111" stroke-width="1.2" />
+      <text x="770" y="245" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">V5</text>
+      <path d="M 770 270 Q 790 265 800 270 L 805 275 L 810 190 L 815 280 L 820 270 Q 840 260 860 270 T 940 270" fill="none" stroke="#111" stroke-width="1.2" />
+      <!-- Row 3: III, aVF, V3, V6 -->
+      <path d="M 30 400 L 40 400 L 40 350 L 60 350 L 60 400 L 70 400" fill="none" stroke="#111" stroke-width="1.5" />
+      <text x="80" y="375" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">III</text>
+      <path d="M 80 400 Q 110 395 120 400 T 130 400 L 135 410 L 140 330 L 145 415 L 150 400 Q 170 390 190 400 T 250 400" fill="none" stroke="#111" stroke-width="1.2" />
+      <text x="330" y="375" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">aVF</text>
+      <path d="M 330 400 Q 350 395 360 400 L 365 405 L 370 340 L 375 405 L 380 400 Q 400 390 420 400 T 480 400" fill="none" stroke="#111" stroke-width="1.2" />
+      <text x="550" y="375" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">V3</text>
+      <path d="M 550 400 Q 570 400 580 400 L 585 395 L 590 350 L 595 430 L 600 400 Q 620 410 640 400 T 720 400" fill="none" stroke="#111" stroke-width="1.2" />
+      <text x="770" y="375" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">V6</text>
+      <path d="M 770 400 Q 790 395 800 400 L 805 405 L 810 330 L 815 410 L 820 400 Q 840 390 860 400 T 940 400" fill="none" stroke="#111" stroke-width="1.2" />
+      <!-- Row 4: Rhythm Strip (Lead II, Full width) -->
+      <path d="M 30 520 L 40 520 L 40 470 L 60 470 L 60 520 L 70 520" fill="none" stroke="#111" stroke-width="1.5" />
+      <text x="80" y="495" font-family="sans-serif" font-weight="bold" font-size="12" fill="#0f172a">II (Rhythm)</text>
+      <path d="M 80 520 Q 110 515 120 520 T 130 520 L 135 530 L 140 450 L 145 535 L 150 520 Q 170 510 190 520 T 260 520 Q 290 515 300 520 T 310 520 L 315 530 L 320 450 L 325 535 L 330 520 Q 350 510 370 520 T 440 520 Q 470 515 480 520 T 490 520 L 495 530 L 500 450 L 505 535 L 510 520 Q 530 510 550 520 T 620 520 Q 650 515 660 520 T 670 520 L 675 530 L 680 450 L 685 535 L 690 520 Q 710 510 730 520 T 800 520 Q 830 515 840 520 T 850 520 L 855 530 L 860 450 L 865 535 L 870 520 Q 890 510 910 520 T 960 520" fill="none" stroke="#111" stroke-width="1.2" />
+      <!-- Regulatory Disclaimer Footer -->
+      <text x="500" y="585" text-anchor="middle" font-family="sans-serif" font-style="italic" font-weight="600" font-size="11" fill="#b91c1c">Digitally reconstructed from a scanned image. Not the original recording. For reference only, not for diagnosis.</text>
+    </svg>`
+
+    ecgResult.reconstruction = {
+      reconstructedImageUrl: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(mockSvg),
+      comparisonImageUrl: null,
+      layout: '12_lead_3x4_1',
+      numLeadsDetected: 13,
+      calibration: {
+        pxPerMm: 10.0,
+        speedMmPerS: 25.0,
+        gainMmPerMv: 10.0,
+        calibrationSource: 'grid_detected'
+      },
+      quality: {
+        reconstructionQuality: 'high',
+        meanCoverage: 0.94,
+        reprojectionErrorPx: 1.8,
+        crossLeadBpmDiff: 1.2,
+        heartRateBpm: ecgResult.metrics.heartRate,
+        totalGaps: 0
+      },
+      warnings: [],
+      disclaimer: 'Digitally reconstructed from a scanned image. Not the original recording. For reference only, not for diagnosis.'
     }
     ecgResult.aiExplanation = generateLocalExplanation(ecgResult, 'cardiac')
     return ecgResult

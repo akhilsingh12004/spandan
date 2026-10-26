@@ -76,7 +76,26 @@ def test_cardiac_prediction_pipeline():
     assert "qrsDuration" in metrics
 
     assert data["heatmapUrl"].startswith("data:image/png;base64,")
+    assert "reconstruction" in data
     assert data["disclaimer"] == MEDICAL_DISCLAIMER
+
+
+def test_ecg_reconstruct_endpoint():
+    with open(ECG_SAMPLE_PATH, "rb") as f:
+        response = client.post("/api/ecg/reconstruct", files={"file": ("sample_ecg.png", f, "image/png")})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "reconstructedImageUrl" in data
+    assert data["reconstructedImageUrl"].startswith("data:image/png;base64,")
+    assert "comparisonImageUrl" in data
+    assert "leads" in data
+    assert "layout" in data
+    assert "calibration" in data
+    assert "quality" in data
+    assert "warnings" in data
+    assert data["layout"] == "single_strip"
+
 
 
 

@@ -7,6 +7,7 @@ import Disclaimer from '../components/Disclaimer'
 import ConsentBox from '../components/ConsentBox'
 import { useLanguage } from '../LanguageContext'
 import { predictCardiac, simulateCardiacPrediction } from '../services/api'
+import { saveAnalysisSession } from '../services/storage'
 
 export default function CardiacPage() {
   const navigate = useNavigate()
@@ -49,27 +50,33 @@ export default function CardiacPage() {
     setIsProcessing(true)
     setCurrentStep(0)
 
-    const stepIntervals = [400, 600, 800, 700, 900, 500, 400]
+    // Run prediction promise concurrently with checklist step animations
+    const predictionPromise = predictCardiac(selectedImage.file).catch((error) => {
+      console.log('Backend not available, using simulation mode:', error)
+      return simulateCardiacPrediction()
+    })
+
+    const stepIntervals = [350, 450, 400, 450, 500, 450, 400, 400, 500, 400, 350]
     
     for (let i = 0; i < stepIntervals.length; i++) {
       await new Promise(resolve => setTimeout(resolve, stepIntervals[i]))
       setCurrentStep(i + 1)
     }
 
-    let results
     try {
-      results = await predictCardiac(selectedImage.file)
-    } catch (error) {
-      console.log('Backend not available, using simulation mode')
-      results = simulateCardiacPrediction()
+      const results = await predictionPromise
+
+      await saveAnalysisSession({
+        results,
+        image: selectedImage.preview,
+        module: 'cardiac'
+      })
+    } catch (saveError) {
+      console.warn('Analysis session saving error (continuing):', saveError)
+    } finally {
+      setIsProcessing(false)
+      navigate('/results/cardiac')
     }
-
-    sessionStorage.setItem('analysisResults', JSON.stringify(results))
-    sessionStorage.setItem('analysisImage', selectedImage.preview)
-    sessionStorage.setItem('analysisModule', 'cardiac')
-
-    setIsProcessing(false)
-    navigate('/results/cardiac')
   }
 
   return (

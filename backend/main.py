@@ -10,13 +10,15 @@ import cv2
 import numpy as np
 import json
 from typing import Optional
-from fastapi import FastAPI, File, UploadFile, Form, Header, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from config import CARDIAC_CLASSES
-from modules.cardiac_processor import process_ecg_image
+from modules.cardiac_processor import process_ecg_image, extract_ecg_features
 from modules.cardiac_model import cardiac_engine
+from modules.ecg_reconstructor import reconstruct_ecg_report
+from scipy import signal
 from modules.explainability import (
     generate_ecg_gradcam_visualization,
 )
@@ -70,6 +72,7 @@ def root():
         "endpoints": [
             "/api/health",
             "/api/predict/cardiac",
+            "/api/ecg/reconstruct",
             "/api/predict/blood",
             "/api/blood/reference-ranges",
             "/api/detect-module",
@@ -103,6 +106,28 @@ def health_check():
     }
 
 
+@app.post("/api/ecg/reconstruct")
+async def reconstruct_ecg_endpoint(
+    file: UploadFile = File(...),
+    render_mode: str = Query("faithful", pattern="^(faithful|clean)$")
+):
+    """
+    Reconstructs an uploaded paper/scanned ECG report into a standardized,
+    clinically faithful digital ECG image and per-lead calibrated time-series.
+    """
+    try:
+        contents = await file.read()
+        if len(contents) == 0:
+            raise HTTPException(status_code=400, detail="Empty file uploaded.")
+        
+        reconstruction = reconstruct_ecg_report(contents, render_mode=render_mode)
+        return JSONResponse(content=reconstruction)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ECG reconstruction failed: {str(e)}")
+
+
 @app.post("/api/predict/cardiac")
 async def predict_cardiac_endpoint(file: UploadFile = File(...)):
     """
@@ -112,6 +137,7 @@ async def predict_cardiac_endpoint(file: UploadFile = File(...)):
     3. Detects R-peaks and computes clinical intervals (HR, RR, QT, HRV, PR, QRS)
     4. Evaluates 1D-CNN + BiLSTM model
     5. Computes Grad-CAM 1D wave attribution
+    6. Reconstructs standardized digital ECG sheet (if possible) without breaking prediction flow
     """
     start_total = time.time()
     try:
@@ -119,8 +145,35 @@ async def predict_cardiac_endpoint(file: UploadFile = File(...)):
         if len(contents) == 0:
             raise HTTPException(status_code=400, detail="Empty file uploaded.")
 
+        # Attempt digital ECG reconstruction in isolated try/except block
+        reconstruction = None
+        try:
+            reconstruction = reconstruct_ecg_report(contents)
+        except Exception as rec_err:
+            reconstruction = None
+
         # 1. Image preprocessing & signal extraction
-        image_bgr, digitized_signal, features = process_ecg_image(contents)
+        # When a 12-lead image is detected, feed the Lead II rhythm strip
+        # (resampled to 250 Hz, 4 s window = 1000 samples) into existing model/feature pipeline
+        digitized_signal = None
+        features = None
+        if reconstruction and reconstruction.get("layout") in ["12_lead_3x4_1", "12_lead_3x4"]:
+            leads = reconstruction.get("leads", {})
+            rhythm_lead = leads.get("II (Rhythm)") or leads.get("Lead II") or leads.get("II")
+            if rhythm_lead and rhythm_lead.get("mV"):
+                raw_mv = np.array([0.0 if x is None else x for x in rhythm_lead["mV"]], dtype=np.float32)
+                if len(raw_mv) >= 500:
+                    # 4.0s at 500 Hz = 2000 samples
+                    slice_mv = raw_mv[:2000] if len(raw_mv) >= 2000 else raw_mv
+                    # Resample to 1000 samples (250 Hz for 4s)
+                    resampled_1000 = signal.resample(slice_mv, 1000).astype(np.float32)
+                    max_amp = float(np.max(np.abs(resampled_1000)))
+                    digitized_signal = (resampled_1000 / max_amp) if max_amp > 1e-4 else resampled_1000
+                    features = extract_ecg_features(digitized_signal, sampling_rate=250)
+
+        # Fallback to standard processor for single strips or if reconstruction rhythm strip is unavailable
+        if digitized_signal is None or features is None:
+            image_bgr, digitized_signal, features = process_ecg_image(contents)
 
         # 2. Model inference
         inference_result = cardiac_engine.predict(digitized_signal, features)
@@ -167,6 +220,7 @@ async def predict_cardiac_endpoint(file: UploadFile = File(...)):
                     "rmssd": features.get("rmssd", "28 ms"),
                 },
                 "heatmapUrl": gradcam_img_url,
+                "reconstruction": reconstruction,
                 "aiExplanation": ai_exp,
                 "processingTime": f"{total_elapsed}s",
                 "disclaimer": MEDICAL_DISCLAIMER,
