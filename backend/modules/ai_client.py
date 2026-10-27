@@ -1,6 +1,7 @@
 """
 Spandan AI - Unified AI Client Layer
-Integrates Google Gemini (Multimodal Vision & Generative AI), OpenAI, and Groq.
+Integrates xAI Grok (Primary), Google Gemini (Multimodal Vision & Generative AI),
+OpenAI, and Groq.
 Enables real blood test report analysis, document parameter extraction,
 clinical reasoning, and contextual conversational Q&A without model training.
 """
@@ -41,14 +42,24 @@ def get_available_ai_key(custom_key: Optional[str] = None, provider: Optional[st
     """
     Resolves the active API key and provider.
     Priority: custom_key -> os.environ -> .env
+    Auto-detection order: xAI (Grok) -> Gemini -> OpenAI -> Groq
     """
     _load_env_file()
     
     if custom_key and custom_key.strip():
-        resolved_provider = provider.lower() if provider else ("openai" if custom_key.startswith("sk-") else "gemini")
+        resolved_provider = provider.lower() if provider else (
+            "xai" if custom_key.startswith("xai-") else
+            "openai" if custom_key.startswith("sk-") else
+            "gemini"
+        )
         return custom_key.strip(), resolved_provider
 
     prov = (provider or "").lower()
+    if prov in ["xai", "grok"]:
+        key = os.environ.get("XAI_API_KEY") or os.environ.get("GROK_AI_API_KEY")
+        if key and key.strip() and key.strip() != "your_xai_api_key_here":
+            return key.strip(), "xai"
+
     if prov in ["gemini", "google"]:
         key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
         if key:
@@ -64,7 +75,11 @@ def get_available_ai_key(custom_key: Optional[str] = None, provider: Optional[st
         if key:
             return key.strip(), "groq"
 
-    # Default auto-detection order: Gemini -> OpenAI -> Groq
+    # Default auto-detection order: xAI (Grok) -> Gemini -> OpenAI -> Groq
+    xai_key = os.environ.get("XAI_API_KEY") or os.environ.get("GROK_AI_API_KEY")
+    if xai_key and xai_key.strip() and xai_key.strip() != "your_xai_api_key_here":
+        return xai_key.strip(), "xai"
+
     gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if gemini_key:
         return gemini_key.strip(), "gemini"
@@ -267,6 +282,85 @@ def call_groq_api(
         raise RuntimeError(f"Groq HTTP {resp.status_code}: {resp.text}")
 
 
+def call_xai_api(
+    prompt: str,
+    system_instruction: Optional[str] = None,
+    image_bytes: Optional[bytes] = None,
+    mime_type: str = "image/png",
+    api_key: Optional[str] = None,
+    model: str = "grok-3-latest",
+    response_json: bool = False,
+    timeout: float = 60.0,
+) -> str:
+    """
+    Executes an xAI Grok API call via its OpenAI-compatible chat completions endpoint.
+    Uses grok-3-latest as the default model for heart disease diagnosis.
+    Supports multimodal (vision) inputs for ECG image analysis.
+    """
+    if not api_key:
+        raise ValueError("Missing xAI (Grok) API Key. Set XAI_API_KEY in your .env file.")
+
+    url = "https://api.x.ai/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    messages = []
+    if system_instruction:
+        messages.append({"role": "system", "content": system_instruction})
+
+    if image_bytes:
+        b64_img = base64.b64encode(image_bytes).decode("utf-8")
+        user_content = [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{b64_img}"}}
+        ]
+        messages.append({"role": "user", "content": user_content})
+    else:
+        messages.append({"role": "user", "content": prompt})
+
+    payload: Dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "temperature": 0.2,
+    }
+    if response_json:
+        payload["response_format"] = {"type": "json_object"}
+
+    # Try primary model, then fallback
+    models_to_try = [model]
+    if model != "grok-2-latest":
+        models_to_try.append("grok-2-latest")
+
+    last_error = None
+    for m in models_to_try:
+        payload["model"] = m
+        try:
+            with httpx.Client(timeout=timeout) as client:
+                resp = client.post(url, headers=headers, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    choices = data.get("choices", [])
+                    if choices:
+                        return choices[0].get("message", {}).get("content", "")
+                    return ""
+                else:
+                    err_msg = resp.text
+                    last_error = f"xAI Grok ({m}) HTTP {resp.status_code}: {err_msg}"
+                    # If model not found, try next; otherwise raise
+                    if resp.status_code in [404, 400] and ("not found" in err_msg.lower() or "unsupported" in err_msg.lower() or "invalid" in err_msg.lower()):
+                        continue
+                    raise RuntimeError(last_error)
+        except RuntimeError:
+            raise
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    raise RuntimeError(f"All xAI Grok models failed. Last error: {last_error}")
+
+
 def execute_ai_query(
     prompt: str,
     system_instruction: Optional[str] = None,
@@ -279,12 +373,26 @@ def execute_ai_query(
     """
     Unified entry point for AI queries.
     Returns (response_text, provider_used, model_used).
+    Priority: xAI (Grok) -> Gemini -> OpenAI -> Groq
     """
     key, prov = get_available_ai_key(api_key, provider)
     if not key:
-        raise ValueError("No AI API key is configured. Please provide a Gemini or OpenAI key.")
+        raise ValueError("No AI API key is configured. Please provide an xAI (Grok), Gemini, or OpenAI key.")
 
-    if prov == "gemini":
+    if prov == "xai":
+        model_name = "grok-3-latest"
+        text = call_xai_api(
+            prompt=prompt,
+            system_instruction=system_instruction,
+            image_bytes=image_bytes,
+            mime_type=mime_type,
+            api_key=key,
+            model=model_name,
+            response_json=response_json,
+        )
+        return text, "xai", model_name
+
+    elif prov == "gemini":
         model_name = "gemini-2.5-flash"
         text = call_gemini_api(
             prompt=prompt,
@@ -324,11 +432,25 @@ def execute_ai_query(
     raise ValueError(f"Unsupported AI provider: {prov}")
 
 
-def test_ai_connection(api_key: str, provider: str = "gemini") -> Dict[str, Any]:
+def test_ai_connection(api_key: str, provider: str = "xai") -> Dict[str, Any]:
     """Tests if the supplied API key is valid and can generate responses."""
     prov = provider.lower()
     try:
-        if prov == "gemini":
+        if prov in ["xai", "grok"]:
+            resp = call_xai_api(
+                prompt="Respond in exactly one word: 'CONNECTED'",
+                api_key=api_key,
+                model="grok-3-latest",
+                timeout=15.0
+            )
+            return {
+                "success": True,
+                "provider": "xai",
+                "model": "grok-3-latest",
+                "message": "Successfully connected to xAI Grok API.",
+                "sampleResponse": resp.strip()
+            }
+        elif prov == "gemini":
             resp = call_gemini_api(
                 prompt="Respond in exactly one word: 'CONNECTED'",
                 api_key=api_key,
@@ -381,16 +503,18 @@ def test_ai_connection(api_key: str, provider: str = "gemini") -> Dict[str, Any]
         }
 
 
-def save_key_to_env(api_key: str, provider: str = "gemini") -> bool:
+def save_key_to_env(api_key: str, provider: str = "xai") -> bool:
     """Persists the API key into backend/.env for server-side persistence."""
     env_file = BACKEND_DIR / ".env"
     key_var_map = {
+        "xai": "XAI_API_KEY",
+        "grok": "XAI_API_KEY",
         "gemini": "GEMINI_API_KEY",
         "google": "GEMINI_API_KEY",
         "openai": "OPENAI_API_KEY",
         "groq": "GROQ_API_KEY",
     }
-    var_name = key_var_map.get(provider.lower(), "GEMINI_API_KEY")
+    var_name = key_var_map.get(provider.lower(), "XAI_API_KEY")
 
     existing_lines = []
     if env_file.exists():

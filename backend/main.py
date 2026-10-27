@@ -238,17 +238,40 @@ async def predict_cardiac_endpoint(file: UploadFile = File(...)):
 def get_ai_status():
     """Returns current status of configured AI providers and models."""
     key, provider = get_available_ai_key()
+
+    # Model & engine name resolution with xAI Grok as primary
+    model_map = {
+        "xai": "grok-3-latest",
+        "gemini": "gemini-2.5-flash",
+        "openai": "gpt-4o-mini",
+        "groq": "llama-3.3-70b-versatile",
+    }
+    engine_map = {
+        "xai": "xAI Grok (grok-3-latest)",
+        "gemini": "Google Gemini (gemini-2.5-flash)",
+        "openai": "OpenAI (gpt-4o-mini)",
+        "groq": "Groq Cloud (llama-3.3-70b-versatile)",
+    }
+
     return {
         "status": "configured" if key else "unconfigured",
         "activeProvider": provider,
         "hasKey": key is not None and len(key) > 4,
         "keySnippet": f"{key[:4]}...{key[-3:]}" if key and len(key) > 7 else None,
-        "model": "gemini-2.5-flash" if provider == "gemini" else ("gpt-4o-mini" if provider == "openai" else "llama-3.3-70b"),
-        "engineName": "Google Gemini (gemini-2.5-flash)" if provider == "gemini" else ("OpenAI (gpt-4o-mini)" if provider == "openai" else "Spandan Clinical AI Engine"),
+        "model": model_map.get(provider, "grok-3-latest"),
+        "engineName": engine_map.get(provider, "Spandan Clinical AI Engine"),
         "supportedProviders": [
             {
+                "id": "xai",
+                "name": "xAI Grok (Recommended)",
+                "model": "grok-3-latest",
+                "multimodal": True,
+                "freeTier": False,
+                "signupUrl": "https://console.x.ai/"
+            },
+            {
                 "id": "gemini",
-                "name": "Google Gemini (Recommended / Free)",
+                "name": "Google Gemini (Free Tier)",
                 "model": "gemini-2.5-flash",
                 "multimodal": True,
                 "freeTier": True,
@@ -278,7 +301,7 @@ def get_ai_status():
 async def test_ai_key_endpoint(payload: dict):
     """Validates an API key and provider in real-time."""
     api_key = payload.get("apiKey", "")
-    provider = payload.get("provider", "gemini")
+    provider = payload.get("provider", "xai")
     if not api_key:
         raise HTTPException(status_code=400, detail="API key is required.")
     result = test_ai_connection(api_key, provider=provider)
@@ -289,13 +312,13 @@ async def test_ai_key_endpoint(payload: dict):
 async def save_ai_key_endpoint(payload: dict):
     """Persists the supplied API key into backend .env file."""
     api_key = payload.get("apiKey", "")
-    provider = payload.get("provider", "gemini")
+    provider = payload.get("provider", "xai")
     if not api_key:
         raise HTTPException(status_code=400, detail="API key is required.")
     save_key_to_env(api_key, provider=provider)
     return JSONResponse(content={
         "success": True,
-        "message": f"Successfully persisted {provider.capitalize()} API key.",
+        "message": f"Successfully persisted {provider.upper()} API key.",
         "provider": provider
     })
 
