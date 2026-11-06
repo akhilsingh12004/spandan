@@ -17,8 +17,7 @@ import ConsentBox from '../components/ConsentBox'
 import { useLanguage } from '../LanguageContext'
 import { 
   extractBloodParameters, 
-  analyzeComprehensiveBlood, 
-  simulateBloodPrediction 
+  analyzeComprehensiveBlood
 } from '../services/api'
 import { saveAnalysisSession } from '../services/storage'
 import { TEST_PLAIN_NAMES } from '../translations'
@@ -59,9 +58,9 @@ export default function BloodReportPage() {
 
   // Step 2: About you state
   const [age, setAge] = useState('')
-  const [sex, setSex] = useState('Female')
-  const [fasting, setFasting] = useState('Yes (8+ hours)')
-  const [pregnant, setPregnant] = useState('No')
+  const [sex, setSex] = useState('')
+  const [fasting, setFasting] = useState('')
+  const [pregnant, setPregnant] = useState('')
   const [symptoms, setSymptoms] = useState([])
   const [medications, setMedications] = useState('')
 
@@ -74,6 +73,8 @@ export default function BloodReportPage() {
   ])
 
   const [showAddMenu, setShowAddMenu] = useState(false)
+  const [reportMetadata, setReportMetadata] = useState(null)
+  const [rawReportText, setRawReportText] = useState('')
 
   // Handle image selection
   const handleImageSelect = useCallback((imageData) => {
@@ -101,6 +102,12 @@ export default function BloodReportPage() {
       setIsExtracting(true)
       try {
         const extraction = await extractBloodParameters(selectedImage.file)
+        setReportMetadata(extraction.metadata || null)
+        setRawReportText(extraction.rawText || '')
+        const extractedPatient = extraction.metadata?.patient || {}
+        if (extractedPatient.age?.value) setAge(String(extractedPatient.age.value))
+        if (extractedPatient.sex?.value) setSex(String(extractedPatient.sex.value))
+        if (extractedPatient.fastingStatus?.value) setFasting(String(extractedPatient.fastingStatus.value))
         if (extraction && extraction.parameters && extraction.parameters.length > 0) {
           const mapped = extraction.parameters.map((p, idx) => {
             const canonical = p.canonicalName || p.name || 'Test'
@@ -179,20 +186,27 @@ export default function BloodReportPage() {
     })
 
     const patientContextPayload = {
-      age: age ? parseInt(age, 10) : undefined,
-      sex: sex,
-      fasting: fasting,
-      pregnancy: sex === 'Female' ? pregnant : 'No',
-      symptoms: symptoms.join(', '),
-      medications: medications
+      ...(age ? { age: parseInt(age, 10) } : {}),
+      ...(sex ? { sex } : {}),
+      ...(fasting ? { fasting } : {}),
+      ...(pregnant ? { pregnancy: pregnant } : {}),
+      ...(symptoms.length ? { symptoms: symptoms.join(', ') } : {}),
+      ...(medications ? { medications } : {}),
+      ...(reportMetadata ? { documentMetadata: reportMetadata } : {})
     }
 
     let results
     try {
-      results = await analyzeComprehensiveBlood(verifiedMap, patientContextPayload)
+      results = await analyzeComprehensiveBlood({
+        parameters: verifiedMap,
+        patientContext: patientContextPayload,
+        rawText: rawReportText
+      })
     } catch (err) {
-      console.warn('Backend not available, using simulated results:', err)
-      results = simulateBloodPrediction(verifiedMap, patientContextPayload)
+      console.error('Blood analysis failed:', err)
+      setIsProcessing(false)
+      window.alert('The report could not be analyzed. Please check the server connection and retry.')
+      return
     }
 
     try {

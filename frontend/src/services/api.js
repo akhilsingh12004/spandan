@@ -141,17 +141,8 @@ export async function autoDetectModule(file) {
  * @returns {Promise} - AI Explanation object
  */
 export async function fetchReportExplanation(reportData, module = 'blood', readingLevel = 'standard') {
-  try {
-    const response = await api.post('/api/ai/explain-report', {
-      reportData,
-      module,
-      readingLevel,
-    })
-    return response.data.explanation
-  } catch (error) {
-    console.warn('[Spandan AI] Backend explainer fallback:', error)
-    return reportData.aiExplanation || generateLocalExplanation(reportData, module, readingLevel)
-  }
+  const response = await api.post('/api/ai/explain-report', { reportData, module, readingLevel })
+  return response.data.explanation
 }
 
 /**
@@ -163,18 +154,8 @@ export async function fetchReportExplanation(reportData, module = 'blood', readi
  * @returns {Promise} - { reply: string, followUpSuggestions: Array }
  */
 export async function askReportAI(reportData, message, chatHistory = [], module = 'blood') {
-  try {
-    const response = await api.post('/api/ai/chat-report', {
-      reportData,
-      message,
-      chatHistory,
-      module,
-    })
-    return response.data
-  } catch (error) {
-    console.warn('[Spandan AI] Backend chat fallback:', error)
-    return generateLocalChatResponse(reportData, message, module)
-  }
+  const response = await api.post('/api/ai/chat-report', { reportData, message, chatHistory, module })
+  return response.data
 }
 
 /**

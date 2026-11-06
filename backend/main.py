@@ -150,6 +150,8 @@ async def predict_cardiac_endpoint(file: UploadFile = File(...)):
         try:
             reconstruction = reconstruct_ecg_report(contents)
         except Exception as rec_err:
+            import logging
+            logging.getLogger("uvicorn.error").error(f"[ECG Reconstruction Error]: {rec_err}", exc_info=True)
             reconstruction = None
 
         # 1. Image preprocessing & signal extraction

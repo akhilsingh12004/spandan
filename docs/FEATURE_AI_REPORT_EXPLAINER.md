@@ -46,6 +46,13 @@ flowchart TD
 
 The explainer operates on a deterministic, evidence-based clinical reasoning pipeline with optional plug-and-play LLM expansion (via `GEMINI_API_KEY` or `OPENAI_API_KEY`):
 
+#### Deployment and data-grounding notes
+
+- Set one backend provider key: `GEMINI_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`, or `XAI_API_KEY` (the provider selection is resolved by `modules/ai_client.py`). Keep keys server-side; the frontend only uses `VITE_API_URL` to locate the backend.
+- Blood extraction returns document-derived measurements and explicit limitations. It does not substitute demo values when OCR/PDF parsing fails.
+- The active report context contains validated measurements, units, reference ranges, patient metadata, provenance snippets, deterministic flags, extraction limitations, and the current conversation history. A new upload resets the frontend conversation.
+- If live chat generation is unavailable, the API returns an honest retry message; it does not present a canned medical answer as a successful AI response. Emergency symptom checks run before provider generation.
+
 #### 2.1 Multi-System Organ Impact Classifier
 
 The engine groups evaluated laboratory parameters into physiological domains:

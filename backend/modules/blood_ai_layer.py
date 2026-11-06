@@ -148,6 +148,14 @@ def analyze_blood_report_with_ai(
     """
     start_time = time.time()
     active_key, active_provider = get_available_ai_key(api_key, provider)
+    from modules.blood_processor import extract_patient_and_report_metadata
+    extracted_metadata = extract_patient_and_report_metadata(raw_text)
+    patient_context = patient_context or {}
+    # Document values are retained separately; explicit user corrections win for interpretation.
+    document_patient = extracted_metadata.get("patient", {})
+    for key, item in document_patient.items():
+        if item and not patient_context.get(key):
+            patient_context[key] = item.get("value")
 
     is_pdf = filename.lower().endswith(".pdf") or (file_bytes and file_bytes[:4] == b"%PDF")
 
@@ -260,6 +268,8 @@ def analyze_blood_report_with_ai(
                 "followUpRecommendations": combined_follow_ups,
                 "safety": safety_results,
                 "patientContext": patient_context,
+                "patientMetadata": extracted_metadata,
+                "extractionLimitations": [] if parameters else ["No measurements were confidently extracted."],
                 "summary": {
                     "totalEvaluated": summary.get("totalEvaluated", len(parameters)),
                     "abnormalCount": summary.get("abnormalCount", sum(1 for p in parameters if p.get("isAbnormal"))),
@@ -300,7 +310,7 @@ def analyze_blood_report_with_ai(
     # ─────────────────────────────────────────────────────────────
     # STEP 2: Fallback to Resilient Clinical Engine (Offline Mode)
     # ─────────────────────────────────────────────────────────────
-    from modules.blood_processor import parse_report_text, get_smart_fallback_parameters
+    from modules.blood_processor import parse_report_text
     from modules.ai_explainer import generate_blood_report_explanation
 
     parsed_params = parse_report_text(raw_text)
@@ -314,9 +324,6 @@ def analyze_blood_report_with_ai(
                     parsed_params[canon_name] = val_num
                 except (ValueError, TypeError):
                     pass
-
-    if len(parsed_params) == 0:
-        parsed_params = get_smart_fallback_parameters(raw_text, filename)
 
     evaluated_list = [evaluate_parameter(p_name, p_val) for p_name, p_val in parsed_params.items()]
     evaluated_list.sort(key=lambda x: (not x.get("isAbnormal", False), x.get("panel", ""), x["canonicalName"]))
@@ -332,6 +339,8 @@ def analyze_blood_report_with_ai(
         "followUpRecommendations": pattern_results.get("followUpRecommendations", []),
         "safety": safety_results,
         "patientContext": patient_context,
+        "patientMetadata": extracted_metadata,
+        "extractionLimitations": ([] if raw_text else ["No readable text was extracted from the document."]) + (["No laboratory measurements were confidently parsed."] if not evaluated_list else []),
         "summary": {
             "totalEvaluated": pattern_results["totalEvaluated"],
             "abnormalCount": pattern_results["abnormalCount"],
@@ -376,8 +385,30 @@ def chat_with_blood_ai_layer(
     safety = report_data.get("safety", {})
     patient_context = report_data.get("patientContext", {})
 
+    if not user_message or not user_message.strip():
+        return {"reply": "Please enter a question about your report or health concern.", "followUpSuggestions": [], "isRealAi": False}
+
+    # Conservative deterministic triage runs before any provider call.
+    emergency_terms = [
+        "severe chest pain", "chest pressure", "difficulty breathing", "can't breathe",
+        "cannot breathe", "fainted", "passed out", "new weakness on one side",
+        "face drooping", "slurred speech", "seizure", "unresponsive", "vomiting blood",
+        "black stool", "severe confusion"
+    ]
+    if any(term in user_message.lower() for term in emergency_terms):
+        return {
+            "reply": "Your symptoms could represent a medical emergency. Please call your local emergency number or go to the nearest emergency department now. Do not wait for an AI explanation or drive yourself if you feel faint or unsafe.",
+            "followUpSuggestions": [],
+            "isRealAi": False,
+            "safetyEscalation": True,
+            "aiEngine": "deterministic safety check"
+        }
+
     # Ground-truth context of the patient's report
     report_context = {
+        "reportMetadata": report_data.get("patientMetadata") or patient_context.get("documentMetadata", {}),
+        "extractionLimitations": report_data.get("extractionLimitations", []),
+        "completedExplanation": report_data.get("aiExplanation", {}).get("executiveSummary", "") if isinstance(report_data.get("aiExplanation"), dict) else "",
         "healthScore": summary.get("healthScore"),
         "acuityLevel": summary.get("acuityLevel", "Moderate"),
         "abnormalCount": summary.get("abnormalCount"),
@@ -454,9 +485,10 @@ CONSULTATION GUIDELINES:
         except Exception as e:
             print(f"[BloodAILayer] Chat LLM failed: {e}. Falling back to local responder.")
 
-    # Local fallback responder
-    from modules.ai_explainer import chat_with_report_ai
-    local_resp = chat_with_report_ai(report_data, user_message=user_message, chat_history=chat_history or [], module="_local_blood")
-    local_resp["isRealAi"] = False
-    local_resp["aiEngine"] = "Spandan Clinical Assistant (Offline Mode)"
-    return local_resp
+    return {
+        "reply": "I couldn’t generate an AI response because no configured medical AI provider is available. Please configure an API key and retry.",
+        "followUpSuggestions": [],
+        "isRealAi": False,
+        "aiUnavailable": True,
+        "aiEngine": "unavailable"
+    }

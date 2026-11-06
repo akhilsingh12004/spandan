@@ -17,6 +17,7 @@ import Disclaimer from './Disclaimer'
 import { exportBloodReportPDF } from '../services/pdfExport'
 import { useLanguage } from '../LanguageContext'
 import { TEST_PLAIN_NAMES } from '../translations'
+import AIReportExplainer from './AIReportExplainer'
 
 export default function BloodResultsView({ results, uploadedImage, navigate }) {
   const { t, lang } = useLanguage()
@@ -27,6 +28,9 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
   const summary = results?.summary || {}
   const safety = results?.safety || {}
   const patientContext = results?.patientContext || null
+  const patientMetadata = results?.patientMetadata || {}
+  const extractedPatient = patientMetadata.patient || {}
+  const extractedReport = patientMetadata.report || {}
 
   // Classify critical and abnormal tests
   const criticalItems = useMemo(() => {
@@ -229,6 +233,21 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
           </p>
         </div>
 
+        {(extractedPatient.fullName?.value || extractedPatient.age?.value || extractedReport.reportDate?.value) && (
+          <div className="results-summary-card" id="patient-report-summary" style={{ marginTop: '16px' }}>
+            <h2>Patient and report details</h2>
+            <div className="result-card-values">
+              {extractedPatient.fullName?.value && <div className="result-val-item"><span className="result-val-label">Patient</span><span className="result-val-number">{extractedPatient.fullName.value}</span></div>}
+              {extractedPatient.age?.value && <div className="result-val-item"><span className="result-val-label">Age</span><span className="result-val-number">{extractedPatient.age.value}</span></div>}
+              {extractedPatient.sex?.value && <div className="result-val-item"><span className="result-val-label">Sex</span><span className="result-val-number">{extractedPatient.sex.value}</span></div>}
+              {extractedReport.reportDate?.value && <div className="result-val-item"><span className="result-val-label">Report date</span><span className="result-val-number">{extractedReport.reportDate.value}</span></div>}
+            </div>
+            {results.extractionLimitations?.length > 0 && (
+              <p className="result-card-explanation">Extraction note: {results.extractionLimitations.join(' ')}</p>
+            )}
+          </div>
+        )}
+
         {/* 3. List of cards, one per test (Sorted: Needs attention first, then Normal) */}
         <div className="results-list" id="test-cards-list">
           <h2 style={{ fontSize: '1.25rem', marginBottom: '16px', color: 'var(--text-primary)' }}>
@@ -328,6 +347,13 @@ export default function BloodResultsView({ results, uploadedImage, navigate }) {
             ))}
           </ul>
         </div>
+
+        <section id="ask-spandan-report" aria-label="Ask Spandan About Your Report">
+          <h2 style={{ fontSize: '1.35rem', margin: '32px 0 12px', color: 'var(--text-primary)' }}>
+            Ask Spandan About Your Report
+          </h2>
+          <AIReportExplainer reportData={results} module="blood" />
+        </section>
 
         {/* 6. Buttons: "Save as PDF", "Share", "Check another report" */}
         <div className="results-actions-bar" id="results-action-buttons">

@@ -32,9 +32,13 @@ import { fetchReportExplanation, askReportAI } from '../services/api'
 
 export default function AIReportExplainer({ reportData, module = 'blood' }) {
   const [activeTab, setActiveTab] = useState('summary')
-  const [readingLevel, setReadingLevel] = useState('simple')
+  // The analysis response already contains the provider-generated explanation;
+  // render that validated result immediately on the report page.
+  const [readingLevel, setReadingLevel] = useState('standard')
   const [explanation, setExplanation] = useState(reportData?.aiExplanation || null)
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(!reportData?.aiExplanation)
+  const [explanationError, setExplanationError] = useState('')
+  const [explanationRetry, setExplanationRetry] = useState(0)
   const [copied, setCopied] = useState(false)
 
   // Audio Text-to-Speech state
@@ -55,6 +59,13 @@ export default function AIReportExplainer({ reportData, module = 'blood' }) {
 
   // Fetch or regenerate explanation if needed
   useEffect(() => {
+    setMessages([{
+      sender: 'ai',
+      text: `Hello! I have the current ${module === 'blood' ? 'blood test report' : 'ECG report'} in context. What would you like me to explain?`,
+      timestamp: 'Just now'
+    }])
+    setInputMessage('')
+    setExplanationError('')
     if (reportData?.aiExplanation && readingLevel === 'standard') {
       setExplanation(reportData.aiExplanation)
       setIsLoadingExplanation(false)
@@ -63,14 +74,16 @@ export default function AIReportExplainer({ reportData, module = 'blood' }) {
       fetchReportExplanation(reportData, module, readingLevel)
         .then(data => {
           setExplanation(data)
+          setExplanationError('')
           setIsLoadingExplanation(false)
         })
         .catch(err => {
           console.error('[Spandan AI] Failed to fetch explanation:', err)
+          setExplanationError('The AI summary could not be generated. Check the backend/provider configuration and retry.')
           setIsLoadingExplanation(false)
         })
     }
-  }, [reportData, module, readingLevel])
+  }, [reportData, module, readingLevel, explanationRetry])
 
   // Check speech synthesis support
   useEffect(() => {
@@ -168,7 +181,8 @@ Medical Disclaimer: For educational and decision-support purposes only. Consult 
         ...prev,
         {
           sender: 'ai',
-          text: "I apologize, but I encountered an issue analyzing that question. Based on your report, your primary focus should be discussing the highlighted parameters with your physician.",
+          text: "I couldn’t generate that response right now. Your report context was not discarded; please check the AI service connection and retry.",
+          retryText: textToSend.trim(),
           timestamp: 'Just now'
         }
       ])
@@ -177,7 +191,7 @@ Medical Disclaimer: For educational and decision-support purposes only. Consult 
     }
   }
 
-  if (isLoadingExplanation || !explanation) {
+  if (isLoadingExplanation) {
     return (
       <div className="glass-card-static ai-explainer-card" style={{ padding: '36px', textAlign: 'center', margin: '32px 0' }}>
         <div className="ai-pulse-spinner" style={{ margin: '0 auto 16px' }} />
@@ -191,13 +205,24 @@ Medical Disclaimer: For educational and decision-support purposes only. Consult 
     )
   }
 
-  const promptChips = [
-    "Explain this report in very simple words",
-    "What everyday foods or drinks should I focus on?",
-    "Are any of my abnormal results dangerous?",
-    "What specific questions should I ask my doctor at my visit?",
-    "Give me 3 easy lifestyle habits to improve my health"
-  ]
+  if (!explanation) {
+    return (
+      <div className="glass-card-static ai-explainer-card" style={{ padding: '28px', margin: '32px 0' }}>
+        <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '8px' }}>AI summary unavailable</h3>
+        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>{explanationError || 'The report summary could not be loaded.'}</p>
+        <button type="button" className="btn btn-secondary" onClick={() => { setIsLoadingExplanation(true); setExplanationRetry(value => value + 1) }}>Retry summary</button>
+      </div>
+    )
+  }
+
+  const abnormal = (reportData?.parameters || []).filter(p => p.isAbnormal || ['HIGH', 'LOW', 'CRITICAL_HIGH', 'CRITICAL_LOW'].includes(p.status))
+  const promptChips = abnormal.length > 0
+    ? abnormal.slice(0, 3).map(p => `What does my ${p.canonicalName || p.name} result mean?`)
+    : [
+        'What can this report show, and what can it not rule out?',
+        'Can you explain the results in simpler language?',
+        'What questions should I ask my doctor?'
+      ]
 
   const getSystemIcon = (id) => {
     switch (id) {
@@ -672,6 +697,11 @@ Medical Disclaimer: For educational and decision-support purposes only. Consult 
                               ))}
                             </div>
                           </div>
+                        )}
+                        {msg.retryText && (
+                          <button type="button" className="suggestion-pill" onClick={() => handleSendMessage(msg.retryText)}>
+                            Retry
+                          </button>
                         )}
                       </div>
                     </div>

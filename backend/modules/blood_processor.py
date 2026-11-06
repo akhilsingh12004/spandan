@@ -289,11 +289,54 @@ def parse_report_text(report_text: str) -> Dict[str, float]:
     return extracted_values
 
 
+def _first_match(patterns: List[str], text: str) -> Optional[str]:
+    for pattern in patterns:
+        match = re.search(pattern, text or "", flags=re.IGNORECASE | re.MULTILINE)
+        if match and match.group(1).strip():
+            return match.group(1).strip(" :|-\t")
+    return None
+
+
+def extract_patient_and_report_metadata(report_text: str) -> Dict[str, Any]:
+    """Extract explicitly printed metadata and preserve lightweight provenance."""
+    text = report_text or ""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+    def field(value: Optional[str]) -> Optional[Dict[str, Any]]:
+        if not value:
+            return None
+        source_line = next((line for line in lines if value.lower() in line.lower()), value)
+        return {"value": value, "sourcePage": None, "sourceSnippet": source_line[:240],
+                "confidence": "review", "validationStatus": "unreviewed", "source": "document"}
+
+    patient = {
+        "fullName": field(_first_match([r"(?:patient\s*name|name\s*of\s*patient)\s*[:#-]\s*([^\n|]+)"], text)),
+        "age": field(_first_match([r"(?:age)\s*[:#-]\s*(\d{1,3})\s*(?:years?|yrs?)?\b"], text)),
+        "dateOfBirth": field(_first_match([r"(?:date\s*of\s*birth|dob)\s*[:#-]\s*([^\n|]+)"], text)),
+        "sex": field(_first_match([r"(?:sex|gender)\s*[:#-]\s*([A-Za-z]+)\b"], text)),
+        "patientId": field(_first_match([r"(?:patient\s*id|mrn|medical\s*record\s*(?:no|number))\s*[:#-]\s*([^\n|]+)"], text)),
+    }
+    report = {
+        "laboratoryName": field(_first_match([r"(?:laboratory|lab|diagnostic\s*center|hospital)\s*[:#-]\s*([^\n|]+)"], text)),
+        "reportNumber": field(_first_match([r"(?:report|accession)\s*(?:no|number|id)\s*[:#-]\s*([^\n|]+)"], text)),
+        "sampleCollectionDate": field(_first_match([r"(?:sample\s*(?:collection\s*)?date|collected\s*on)\s*[:#-]\s*([^\n|]+)"], text)),
+        "reportDate": field(_first_match([r"(?:report\s*date|generated\s*on|issued\s*on)\s*[:#-]\s*([^\n|]+)"], text)),
+        "referringDoctor": field(_first_match([r"(?:referring\s*doctor|requested\s*by|physician)\s*[:#-]\s*([^\n|]+)"], text)),
+        "sampleType": field(_first_match([r"(?:sample|specimen)\s*type\s*[:#-]\s*([^\n|]+)"], text)),
+        "fastingStatus": field(_first_match([r"(?:fasting|fasting\s*status)\s*[:#-]\s*([^\n|]+)"], text)),
+        "status": field(_first_match([r"(?:report\s*status|status)\s*[:#-]\s*(preliminary|final|completed?)\b"], text)),
+    }
+    return {"patient": patient, "report": report}
+
+
 def get_smart_fallback_parameters(raw_text: str = "", filename: str = "") -> Dict[str, float]:
     """
     Provides context-aware demonstration parameters if OCR could not extract numbers.
     Detects whether the uploaded report was Liver/Jaundice, CBC, Lipid, or General.
     """
+    # Kept for backwards compatibility with callers; fabricated values are unsafe.
+    return {}
+
     search_corpus = f"{raw_text.lower()} {filename.lower()}"
 
     # 1. Jaundice / Liver Function Test (LFT)
@@ -372,15 +415,13 @@ def extract_parameters_from_report(
 
     parsed_params = parse_report_text(raw_text)
     used_fallback = False
-    if not parsed_params:
-        parsed_params = get_smart_fallback_parameters(raw_text, filename)
-        used_fallback = True
-
     evaluated_list = [evaluate_parameter(p_name, p_val) for p_name, p_val in parsed_params.items()]
     evaluated_list.sort(key=lambda x: (not x.get("isAbnormal", False), x.get("panel", ""), x["canonicalName"]))
 
     return {
-        "rawText": raw_text[:3000] if raw_text else "",
+        "rawText": raw_text[:10000] if raw_text else "",
+        "metadata": extract_patient_and_report_metadata(raw_text),
+        "limitations": ([] if raw_text else ["No readable text was extracted from the document."]) + (["No laboratory measurements were confidently parsed."] if not parsed_params else []),
         "parameters": evaluated_list,
         "parameterMap": parsed_params,
         "extractedCount": len(parsed_params),
